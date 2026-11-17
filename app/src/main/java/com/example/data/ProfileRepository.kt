@@ -53,13 +53,10 @@ class ProfileRepository(private val context: Context) {
 
     private fun loadProfiles() {
         if (!file.exists()) {
-            val starterProfiles = getStarterProfiles()
-            registerHostsForMasking(starterProfiles)
-            _profiles.value = starterProfiles
-            if (getSelectedProfileId() == null && starterProfiles.isNotEmpty()) {
-                setSelectedProfileId(starterProfiles.first().id)
-            }
-            saveProfilesToFile(starterProfiles)
+            val emptyProfiles = getStarterProfiles()
+            registerHostsForMasking(emptyProfiles)
+            _profiles.value = emptyProfiles
+            saveProfilesToFile(emptyProfiles)
             return
         }
 
@@ -68,35 +65,32 @@ class ProfileRepository(private val context: Context) {
             val decryptedJson = CtpConfigCrypto.decryptLocalStore(rawText, context)
             val array = JSONArray(decryptedJson)
             val list = mutableListOf<VpnProfile>()
+
+            // Never silently discard rows: one invalid profile means the store needs
+            // recovery, not a partial rewrite that permanently loses the other data.
             for (i in 0 until array.length()) {
                 val objStr = array.getJSONObject(i).toString()
-                val parsed = ConfigParser.parse(objStr, context = context)
-                if (parsed is com.example.parser.ParseResult.Success) {
-                    list.add(parsed.profile)
+                when (val parsed = ConfigParser.parse(objStr, context = context)) {
+                    is com.example.parser.ParseResult.Success -> list.add(parsed.profile)
+                    else -> throw IllegalStateException("Profile at index $i could not be parsed")
                 }
             }
-            if (list.isEmpty()) {
-                val starterProfiles = getStarterProfiles()
-                registerHostsForMasking(starterProfiles)
-                _profiles.value = starterProfiles
-                if (getSelectedProfileId() == null && starterProfiles.isNotEmpty()) {
-                    setSelectedProfileId(starterProfiles.first().id)
-                }
-                saveProfilesToFile(starterProfiles)
-            } else {
-                registerHostsForMasking(list)
-                _profiles.value = list
-                // Re-save if file was legacy unencrypted JSON
-                if (!rawText.trim().startsWith("CTP_STORE_V2:")) {
-                    saveProfilesToFile(list)
-                }
+
+            registerHostsForMasking(list)
+            _profiles.value = list
+            if (getSelectedProfileId() == null && list.isNotEmpty()) {
+                setSelectedProfileId(list.first().id)
+            }
+
+            // Migrate legacy plaintext JSON only after the entire array parsed.
+            if (!rawText.trim().startsWith("CTP_STORE_V2:")) {
+                saveProfilesToFile(list)
             }
         } catch (e: Exception) {
-            AppLogger.e(TAG, "Failed to load profiles, generating starter profiles: ${e.message}")
-            val starter = getStarterProfiles()
-            registerHostsForMasking(starter)
-            _profiles.value = starter
-            saveProfilesToFile(starter)
+            // Fail closed. Keep the original encrypted/plaintext file untouched so
+            // a transient key/device mismatch or damaged file cannot erase profiles.
+            AppLogger.e(TAG, "Failed to load profiles; original store preserved: ${e.message}")
+            _profiles.value = emptyList()
         }
     }
 
@@ -140,6 +134,7 @@ class ProfileRepository(private val context: Context) {
     }
 
     private fun saveProfilesToFile(list: List<VpnProfile>) {
+        val tempFile = File(context.filesDir, "vpn_profiles.json.tmp")
         try {
             val array = JSONArray()
             list.forEach { profile ->
@@ -147,9 +142,17 @@ class ProfileRepository(private val context: Context) {
                 array.put(org.json.JSONObject(jsonStr))
             }
             val encryptedPayload = CtpConfigCrypto.encryptLocalStore(array.toString(), context)
-            FileOutputStream(file).use { it.write(encryptedPayload.toByteArray(StandardCharsets.UTF_8)) }
+            FileOutputStream(tempFile).use { stream ->
+                stream.write(encryptedPayload.toByteArray(StandardCharsets.UTF_8))
+                stream.fd.sync()
+            }
+            // Rename within the same directory so readers never observe a half-written store.
+            if (!tempFile.renameTo(file)) {
+                throw IllegalStateException("Could not atomically replace profile store")
+            }
         } catch (e: Exception) {
-            AppLogger.e(TAG, "Error saving profiles to file: ${e.message}")
+            try { tempFile.delete() } catch (_: Exception) {}
+            AppLogger.e(TAG, "Error saving profiles to file; previous store preserved: ${e.message}")
         }
     }
 
