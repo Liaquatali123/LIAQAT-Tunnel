@@ -173,63 +173,9 @@ class ProfileRepository(private val context: Context) {
         }
     }
 
-    private fun deterministicUuid(seed: String): String {
-        return UUID.nameUUIDFromBytes(seed.toByteArray(StandardCharsets.UTF_8)).toString()
-    }
-
-    private fun getStarterProfiles(): List<VpnProfile> {
-        return listOf(
-            VpnProfile(
-                id = deterministicUuid("starter-cloudflare-vless-ws"),
-                name = "Cloudflare VLESS WS Template",
-                protocol = ProtocolType.VLESS,
-                server = "104.16.132.229",
-                port = 443,
-                password = "d342d110-d4a3-4513-bfa6-07a5e0f0ff37",
-                security = "tls",
-                network = "ws",
-                path = "/vless-ws",
-                sni = "cf-tunnel.customtunnelpro.org",
-                dnsPrimary = "1.1.1.1",
-                dnsSecondary = "8.8.8.8"
-            ),
-            VpnProfile(
-                id = deterministicUuid("starter-ssh-custom-injector"),
-                name = "SSH HTTP Custom Injector Template",
-                protocol = ProtocolType.SSH,
-                server = "128.199.192.1",
-                port = 22,
-                sshMode = com.example.model.SshTunnelMode.CUSTOM_PAYLOAD,
-                sshUsername = "vpnuser",
-                password = "demoPassword123",
-                sshPayload = "CONNECT [host_port] HTTP/1.1[crlf]Host: bug.isp.com[crlf]User-Agent: [ua][crlf]Connection: Upgrade[crlf][crlf]",
-                proxyHost = "",
-                proxyPort = 0
-            ),
-            VpnProfile(
-                id = deterministicUuid("starter-ssh-wss"),
-                name = "SSH Secure WebSocket (WSS)",
-                protocol = ProtocolType.SSH,
-                server = "ssh-wss.customtunnelpro.org",
-                port = 443,
-                sshMode = com.example.model.SshTunnelMode.SECURE_WEBSOCKET,
-                sshUsername = "tunneluser",
-                password = "wssPassword456",
-                sshSni = "ssh-wss.customtunnelpro.org",
-                sshWsPath = "/ssh"
-            ),
-            VpnProfile(
-                id = deterministicUuid("starter-trojan-gateway"),
-                name = "Trojan Secure Gateway",
-                protocol = ProtocolType.TROJAN,
-                server = "gateway.customtunnelpro.org",
-                port = 443,
-                password = "customTrojanPasswd987",
-                security = "tls",
-                sni = "gateway.customtunnelpro.org"
-            )
-        )
-    }
+    // Never ship fake/demo VPN servers or credentials as if they were usable profiles.
+    // A new installation starts empty and the user imports or creates a real server profile.
+    private fun getStarterProfiles(): List<VpnProfile> = emptyList()
 
     companion object {
         private const val KEY_SELECTED_PROFILE_ID = "selected_profile_id"
