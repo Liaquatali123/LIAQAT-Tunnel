@@ -1,0 +1,71 @@
+name: Auto Extract ZIP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "*.zip"
+      - ".github/workflows/auto-extract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Extract and validate ZIP
+        id: extract
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          archives=( *.zip )
+          if [ ${#archives[@]} -eq 0 ]; then
+            echo "No root ZIP archive found."
+            exit 1
+          fi
+
+          for archive in "${archives[@]}"; do
+            tmp="$(mktemp -d)"
+            unzip -q "$archive" -d "$tmp"
+
+            entries=("$tmp"/* "$tmp"/.[!.]*)
+            entries=("${entries[@]}")
+            if [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ]; then
+              cp -a "${entries[0]}/." .
+            else
+              cp -a "$tmp/." .
+            fi
+            rm -rf "$tmp"
+
+            if ! find . -maxdepth 4 -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit | grep -q .; then
+              echo "Gradle settings file missing; keeping ZIP."
+              exit 1
+            fi
+            if [ ! -f app/src/main/AndroidManifest.xml ]; then
+              echo "AndroidManifest.xml missing; keeping ZIP."
+              exit 1
+            fi
+            rm -f "$archive"
+            echo "Extracted and validated $archive"
+          done
+
+      - name: Commit extracted project to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No extracted changes to commit."
+            exit 0
+          fi
+          git commit -m "Extract Android project ZIP automatically [skip ci]"
+          git push origin HEAD:main
