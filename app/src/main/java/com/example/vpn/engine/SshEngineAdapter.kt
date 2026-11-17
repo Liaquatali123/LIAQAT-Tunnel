@@ -575,11 +575,11 @@ class SshEngineAdapter : VpnEngineAdapter {
                 rawOut.write(byteArrayOf(0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0))
                 rawOut.flush()
             } catch (e: Exception) {
-                releaseChannelAndSocket()
                 try {
                     rawOut.write(byteArrayOf(0x05, 0x05, 0x00, 0x01, 0, 0, 0, 0, 0, 0))
                     rawOut.flush()
                 } catch (_: Exception) {}
+                releaseChannelAndSocket()
             }
         } catch (e: Exception) {
             try { clientSocket.close() } catch (ignored: Exception) {}
