@@ -37,6 +37,12 @@ class SshSocketFactory(
             false
         }
         AppLogger.i(TAG, "Protecting upstream SSH socket with VpnService.protect(): success=$isProtected")
+        if (!isProtected) {
+            try { rawSocket.close() } catch (_: Exception) {}
+            throw IllegalStateException(
+                "Android could not protect the upstream SSH socket. Refusing to connect to prevent a VPN routing loop."
+            )
+        }
 
         val sniHost = profile.sshSni.ifBlank { profile.sni.ifBlank { host } }
         val hostHeader = sniHost.ifBlank { "$host:$port" }
