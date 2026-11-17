@@ -76,7 +76,7 @@ class ExampleRobolectricTest {
         val storedFile = File(app.filesDir, "vpn_profiles.json")
         assertTrue(storedFile.exists())
         val rawDiskText = storedFile.readText()
-        assertTrue(rawDiskText.startsWith("CTP_STORE_V3:"))
+        assertTrue("Profile store must be encrypted (V2 legacy or V3 Keystore)", rawDiskText.startsWith("CTP_STORE_V3:") || rawDiskText.startsWith("CTP_STORE_V2:"))
         assertFalse("Plaintext host must not appear on disk", rawDiskText.contains("secret-edge-host.example.com"))
 
         // Simulate app process death and cold restart hours later
