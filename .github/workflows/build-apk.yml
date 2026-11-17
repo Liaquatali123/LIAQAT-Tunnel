@@ -113,9 +113,6 @@ jobs:
           test -s app/src/main/assets/geosite.dat
           echo "Both ARM ABIs, JNI bindings and routing databases verified."
 
-      - name: Run unit tests
-        run: gradle --no-daemon :app:testDebugUnitTest
-
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
 
@@ -141,11 +138,23 @@ jobs:
           echo "APK passed native ABI and GeoIP/GeoSite packaging checks."
           sha256sum "$APK"
 
+      - name: Run unit tests
+        id: unit_tests
+        continue-on-error: true
+        shell: bash
+        run: timeout 10m gradle --no-daemon :app:testDebugUnitTest
+
       - name: Upload debug APK
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Custom-Tunnel-Pro-debug
           path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 14
+
+      - name: Report unit test failure
+        if: steps.unit_tests.outcome == 'failure'
+        run: |
+          echo "Unit tests failed or exceeded the 10-minute limit. The debug APK artifact was uploaded separately." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
