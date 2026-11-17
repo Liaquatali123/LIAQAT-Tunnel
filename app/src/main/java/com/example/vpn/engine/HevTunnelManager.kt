@@ -17,9 +17,11 @@ object HevTunnelManager {
         socksAddress: String = "127.0.0.1",
         socksPort: Int = 10808,
         udpMode: String = "udp",
-        mapDnsAddress: String = ""
+        mapDnsAddress: String = "",
+        enableIpv6: Boolean = false
     ): String {
         val normalizedUdp = if (udpMode == "udp" || udpMode == "tcp") udpMode else "udp"
+        val ipv6Section = if (enableIpv6) "  ipv6: 'fd00::1'\\n" else ""
         val mapDnsSection = if (mapDnsAddress.isNotBlank()) {
             """
             mapdns:
@@ -38,7 +40,7 @@ object HevTunnelManager {
               mtu: 1500
               multi-queue: false
               ipv4: 198.18.0.1
-            socks5:
+            ${ipv6Section}socks5:
               port: $socksPort
               address: '$socksAddress'
               udp: '$normalizedUdp'
@@ -62,14 +64,15 @@ object HevTunnelManager {
         socksAddress: String = "127.0.0.1",
         socksPort: Int = 10808,
         udpMode: String = "tcp",
-        mapDnsAddress: String = ""
+        mapDnsAddress: String = "",
+        enableIpv6: Boolean = false
     ): Boolean {
         return try {
             lastRxBytes = 0L
             lastTxBytes = 0L
             lastTimestamp = 0L
             val configFile = File(context.cacheDir, "hev_socks5.yml")
-            val yamlConfig = buildConfigYaml(socksAddress, socksPort, udpMode, mapDnsAddress)
+            val yamlConfig = buildConfigYaml(socksAddress, socksPort, udpMode, mapDnsAddress, enableIpv6)
 
             FileOutputStream(configFile).use { it.write(yamlConfig.toByteArray()) }
 
