@@ -422,19 +422,39 @@ class SshEngineAdapter : VpnEngineAdapter {
                 clientSocket.close()
                 return
             }
-            val nmethods = input.readByte().toInt() and 0xFF
+            val nmethods = input.readUnsignedByte()
+            if (nmethods == 0) {
+                rawOut.write(byteArrayOf(0x05, 0xFF.toByte()))
+                rawOut.flush()
+                clientSocket.close()
+                return
+            }
             val methods = ByteArray(nmethods)
             input.readFully(methods)
 
-            // Respond NO_AUTH (0x05, 0x00) directly to rawOut
+            // This local proxy supports only SOCKS5 no-auth. Never select a
+            // method the client did not offer.
+            if (methods.none { (it.toInt() and 0xFF) == 0x00 }) {
+                rawOut.write(byteArrayOf(0x05, 0xFF.toByte()))
+                rawOut.flush()
+                clientSocket.close()
+                return
+            }
             rawOut.write(byteArrayOf(0x05, 0x00))
             rawOut.flush()
 
             // SOCKS5 request
-            val reqVer = input.readByte().toInt()
-            val cmd = input.readByte().toInt() // 0x01 = CONNECT
-            val rsv = input.readByte().toInt()
-            val atyp = input.readByte().toInt()
+            val reqVer = input.readUnsignedByte()
+            val cmd = input.readUnsignedByte() // 0x01 = CONNECT
+            val rsv = input.readUnsignedByte()
+            val atyp = input.readUnsignedByte()
+
+            if (reqVer != 0x05 || rsv != 0x00) {
+                rawOut.write(byteArrayOf(0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0))
+                rawOut.flush()
+                clientSocket.close()
+                return
+            }
 
             if (cmd != 0x01) {
                 rawOut.write(byteArrayOf(0x05, 0x07, 0x00, 0x01, 0, 0, 0, 0, 0, 0))
@@ -450,7 +470,13 @@ class SshEngineAdapter : VpnEngineAdapter {
                     InetAddress.getByAddress(ip).hostAddress ?: "127.0.0.1"
                 }
                 0x03 -> { // Domain name
-                    val len = input.readByte().toInt() and 0xFF
+                    val len = input.readUnsignedByte()
+                    if (len == 0) {
+                        rawOut.write(byteArrayOf(0x05, 0x08, 0x00, 0x01, 0, 0, 0, 0, 0, 0))
+                        rawOut.flush()
+                        clientSocket.close()
+                        return
+                    }
                     val domainBytes = ByteArray(len)
                     input.readFully(domainBytes)
                     String(domainBytes, Charsets.UTF_8)
