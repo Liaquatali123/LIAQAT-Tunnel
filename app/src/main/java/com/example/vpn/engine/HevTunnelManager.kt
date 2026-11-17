@@ -21,7 +21,7 @@ object HevTunnelManager {
         enableIpv6: Boolean = false
     ): String {
         val normalizedUdp = if (udpMode == "udp" || udpMode == "tcp") udpMode else "udp"
-        val ipv6Section = if (enableIpv6) "  ipv6: 'fd00::1'\\n" else ""
+        val ipv6Section = if (enableIpv6) "ipv6: 'fd00::1'\\n              " else ""
         val mapDnsSection = if (mapDnsAddress.isNotBlank()) {
             """
             mapdns:
@@ -40,7 +40,7 @@ object HevTunnelManager {
               mtu: 1500
               multi-queue: false
               ipv4: 198.18.0.1
-            ${ipv6Section}socks5:
+              ${ipv6Section}socks5:
               port: $socksPort
               address: '$socksAddress'
               udp: '$normalizedUdp'
