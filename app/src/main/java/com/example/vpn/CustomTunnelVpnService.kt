@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -455,6 +456,7 @@ class CustomTunnelVpnService : VpnService() {
         runBlocking {
             cleanupSuspend()
         }
+        serviceScope.cancel()
         try {
             connectivityManager.unregisterNetworkCallback(networkCallback)
         } catch (e: Exception) {
