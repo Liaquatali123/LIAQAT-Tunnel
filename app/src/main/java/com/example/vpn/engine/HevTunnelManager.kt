@@ -21,41 +21,45 @@ object HevTunnelManager {
         enableIpv6: Boolean = false
     ): String {
         val normalizedUdp = if (udpMode == "udp" || udpMode == "tcp") udpMode else "udp"
-        val ipv6Section = if (enableIpv6) "ipv6: 'fd00::1'\n              " else ""
-        val mapDnsSection = if (mapDnsAddress.isNotBlank()) {
-            """
-            mapdns:
-              address: ${mapDnsAddress.trim()}
-              port: 53
-              network: 240.0.0.0
-              netmask: 240.0.0.0
-              cache-size: 10000
-            """.trimIndent() + "\n"
-        } else {
-            ""
+
+        // HEV expects tunnel, socks5, mapdns and misc as sibling YAML sections.
+        // Building the document line-by-line avoids accidental indentation that
+        // nests socks5 under tunnel and silently prevents TUN traffic forwarding.
+        return buildString {
+            appendLine("tunnel:")
+            appendLine("  name: tun0")
+            appendLine("  mtu: 1500")
+            appendLine("  multi-queue: false")
+            appendLine("  ipv4: 198.18.0.1")
+            if (enableIpv6) {
+                appendLine("  ipv6: 'fd00::1'")
+            }
+
+            appendLine("socks5:")
+            appendLine("  port: $socksPort")
+            appendLine("  address: '$socksAddress'")
+            appendLine("  udp: '$normalizedUdp'")
+
+            if (mapDnsAddress.isNotBlank()) {
+                appendLine("mapdns:")
+                appendLine("  address: ${mapDnsAddress.trim()}")
+                appendLine("  port: 53")
+                appendLine("  network: 240.0.0.0")
+                appendLine("  netmask: 240.0.0.0")
+                appendLine("  cache-size: 10000")
+            }
+
+            appendLine("misc:")
+            appendLine("  task-stack-size: 81920")
+            appendLine("  tcp-buffer-size: 65536")
+            appendLine("  udp-recv-buffer-size: 524288")
+            appendLine("  udp-copy-buffer-nums: 16")
+            appendLine("  connect-timeout: 8000")
+            appendLine("  tcp-read-write-timeout: 120000")
+            appendLine("  udp-read-write-timeout: 30000")
+            appendLine("  limit-nofile: 65535")
+            append("  log-level: warn")
         }
-        return """
-            tunnel:
-              name: tun0
-              mtu: 1500
-              multi-queue: false
-              ipv4: 198.18.0.1
-              ${ipv6Section}socks5:
-              port: $socksPort
-              address: '$socksAddress'
-              udp: '$normalizedUdp'
-        """.trimIndent() + "\n" + mapDnsSection + """
-            misc:
-              task-stack-size: 81920
-              tcp-buffer-size: 65536
-              udp-recv-buffer-size: 524288
-              udp-copy-buffer-nums: 16
-              connect-timeout: 8000
-              tcp-read-write-timeout: 120000
-              udp-read-write-timeout: 30000
-              limit-nofile: 65535
-              log-level: warn
-        """.trimIndent()
     }
 
     fun start(
