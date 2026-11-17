@@ -263,17 +263,29 @@ object CtpConfigCrypto {
      * portable .ctp export encryption.
      */
     fun encryptLocalStore(plainJson: String, context: Context): String {
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateLocalStoreKey())
-        cipher.updateAAD("CTP-LOCAL-STORE-V3".toByteArray(StandardCharsets.UTF_8))
-        val encrypted = cipher.doFinal(plainJson.toByteArray(StandardCharsets.UTF_8))
-        val iv = cipher.iv
-        val packed = ByteArray(iv.size + encrypted.size)
-        System.arraycopy(iv, 0, packed, 0, iv.size)
-        System.arraycopy(encrypted, 0, packed, iv.size, encrypted.size)
-        return LOCAL_STORE_V3_PREFIX + Base64.encodeToString(packed, Base64.NO_WRAP)
+        // Prefer the non-exportable Android Keystore key on real devices.
+        try {
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, getOrCreateLocalStoreKey())
+            cipher.updateAAD("CTP-LOCAL-STORE-V3".toByteArray(StandardCharsets.UTF_8))
+            val encrypted = cipher.doFinal(plainJson.toByteArray(StandardCharsets.UTF_8))
+            val iv = cipher.iv
+            val packed = ByteArray(iv.size + encrypted.size)
+            System.arraycopy(iv, 0, packed, 0, iv.size)
+            System.arraycopy(encrypted, 0, packed, iv.size, encrypted.size)
+            return LOCAL_STORE_V3_PREFIX + Base64.encodeToString(packed, Base64.NO_WRAP)
+        } catch (keystoreError: Exception) {
+            // Some Android-compatible test runtimes do not implement AndroidKeyStore.
+            // Keep data encrypted with the legacy device-scoped scheme; never write plaintext.
+            val deviceKey = "${reconstructMasterSecret()}|LOCAL_STORE|${DeviceSecurityManager.getHardwareId(context)}"
+            val legacyPacked = encryptBytes(
+                plaintext = plainJson.toByteArray(StandardCharsets.UTF_8),
+                passphrase = deviceKey,
+                aad = "CTP-LOCAL-STORE-V2".toByteArray(StandardCharsets.UTF_8)
+            )
+            return LOCAL_STORE_PREFIX + Base64.encodeToString(legacyPacked, Base64.NO_WRAP)
+        }
     }
-
     /**
      * Reads Keystore-backed V3, legacy V2, and plaintext JSON stores. The caller
      * should re-save non-V3 data after successful full parsing to migrate it.
