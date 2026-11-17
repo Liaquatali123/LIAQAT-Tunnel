@@ -2,6 +2,8 @@ package com.example.security
 
 import android.content.Context
 import android.util.Base64
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -12,6 +14,8 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
+import java.security.KeyStore
+import javax.crypto.KeyGenerator
 
 data class CtpExportOptions(
     val lockConfig: Boolean = true,
@@ -39,6 +43,8 @@ object CtpConfigCrypto {
     const val CTP_HEADER_PREFIX = "CTP2:"
     const val CTP_URI_PREFIX = "ctp://"
     private const val LOCAL_STORE_PREFIX = "CTP_STORE_V2:"
+    private const val LOCAL_STORE_V3_PREFIX = "CTP_STORE_V3:"
+    private const val LOCAL_STORE_KEY_ALIAS = "ctp_local_profile_store_v3"
 
     private const val PBKDF2_ITERATIONS = 16000
     private const val KEY_LENGTH_BITS = 256
@@ -251,27 +257,46 @@ object CtpConfigCrypto {
     /**
      * Encrypts local `vpn_profiles.json` storage so rooted users inspecting `/data/data/...` cannot read plaintext profiles.
      */
+    /**
+     * Encrypt local profiles with a non-exportable Android Keystore key.
+     * The key is device/app-install scoped and is intentionally separate from
+     * portable .ctp export encryption.
+     */
     fun encryptLocalStore(plainJson: String, context: Context): String {
-        val deviceKey = "${reconstructMasterSecret()}|LOCAL_STORE|${DeviceSecurityManager.getHardwareId(context)}"
-        val cipherBytes = encryptBytes(
-            plaintext = plainJson.toByteArray(StandardCharsets.UTF_8),
-            passphrase = deviceKey,
-            aad = "CTP-LOCAL-STORE-V2".toByteArray(StandardCharsets.UTF_8)
-        )
-        return LOCAL_STORE_PREFIX + Base64.encodeToString(cipherBytes, Base64.NO_WRAP)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateLocalStoreKey())
+        cipher.updateAAD("CTP-LOCAL-STORE-V3".toByteArray(StandardCharsets.UTF_8))
+        val encrypted = cipher.doFinal(plainJson.toByteArray(StandardCharsets.UTF_8))
+        val iv = cipher.iv
+        val packed = ByteArray(iv.size + encrypted.size)
+        System.arraycopy(iv, 0, packed, 0, iv.size)
+        System.arraycopy(encrypted, 0, packed, iv.size, encrypted.size)
+        return LOCAL_STORE_V3_PREFIX + Base64.encodeToString(packed, Base64.NO_WRAP)
     }
 
     /**
-     * Decrypts local `vpn_profiles.json` storage, transparently migrating legacy plaintext JSON if needed.
+     * Reads Keystore-backed V3, legacy V2, and plaintext JSON stores. The caller
+     * should re-save non-V3 data after successful full parsing to migrate it.
      */
     fun decryptLocalStore(storedContent: String, context: Context): String {
         val trimmed = storedContent.trim()
+        if (trimmed.startsWith(LOCAL_STORE_V3_PREFIX)) {
+            val packed = Base64.decode(trimmed.removePrefix(LOCAL_STORE_V3_PREFIX), Base64.DEFAULT)
+            require(packed.size > GCM_IV_BYTES + 16) { "Local profile store is truncated" }
+            val iv = packed.copyOfRange(0, GCM_IV_BYTES)
+            val encrypted = packed.copyOfRange(GCM_IV_BYTES, packed.size)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, getOrCreateLocalStoreKey(), GCMParameterSpec(GCM_TAG_BITS, iv))
+            cipher.updateAAD("CTP-LOCAL-STORE-V3".toByteArray(StandardCharsets.UTF_8))
+            return String(cipher.doFinal(encrypted), StandardCharsets.UTF_8)
+        }
+
         if (!trimmed.startsWith(LOCAL_STORE_PREFIX)) {
-            // Legacy plaintext JSON array -> return as-is so caller can re-save encrypted
+            // Legacy plaintext JSON array -> caller re-saves only after full validation.
             return trimmed
         }
-        val base64Part = trimmed.removePrefix(LOCAL_STORE_PREFIX).trim()
-        val packed = Base64.decode(base64Part, Base64.DEFAULT)
+
+        val packed = Base64.decode(trimmed.removePrefix(LOCAL_STORE_PREFIX).trim(), Base64.DEFAULT)
         val deviceKey = "${reconstructMasterSecret()}|LOCAL_STORE|${DeviceSecurityManager.getHardwareId(context)}"
         val plainBytes = decryptBytes(
             packed = packed,
@@ -279,6 +304,26 @@ object CtpConfigCrypto {
             aad = "CTP-LOCAL-STORE-V2".toByteArray(StandardCharsets.UTF_8)
         )
         return String(plainBytes, StandardCharsets.UTF_8)
+    }
+
+    private fun getOrCreateLocalStoreKey(): SecretKey {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        val existing = keyStore.getKey(LOCAL_STORE_KEY_ALIAS, null) as? SecretKey
+        if (existing != null) return existing
+
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        generator.init(
+            KeyGenParameterSpec.Builder(
+                LOCAL_STORE_KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(KEY_LENGTH_BITS)
+                .setRandomizedEncryptionRequired(true)
+                .build()
+        )
+        return generator.generateKey()
     }
 
     private fun deriveAesKey(passphrase: String, salt: ByteArray): SecretKey {
