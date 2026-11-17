@@ -127,7 +127,8 @@ class XrayEngineAdapter : VpnEngineAdapter {
                 tunFd = tunFd,
                 socksAddress = "127.0.0.1",
                 socksPort = localSocksPort,
-                udpMode = "udp"
+                udpMode = "udp",
+                enableIpv6 = !profile.blockIpv6
             )
 
             if (!hevOk) {
