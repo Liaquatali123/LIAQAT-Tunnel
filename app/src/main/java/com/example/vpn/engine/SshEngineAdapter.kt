@@ -475,10 +475,9 @@ class SshEngineAdapter : VpnEngineAdapter {
             channel.setHost(targetHost)
             channel.setPort(targetPort)
 
-            // Send SOCKS5 success response BEFORE binding JSch streams to clientSocket
-            // so remote payload bytes never interleave with the SOCKS5 handshake reply
-            rawOut.write(byteArrayOf(0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0))
-            rawOut.flush()
+            // Do not acknowledge SOCKS5 CONNECT until the upstream SSH channel is open.
+            // Sending success before channel.connect() made clients report a working proxy
+            // even when the remote SSH server rejected or timed out the destination.
 
             val cleanedUp = AtomicBoolean(false)
             fun releaseChannelAndSocket() {
@@ -573,8 +572,14 @@ class SshEngineAdapter : VpnEngineAdapter {
             try {
                 channel.connect(8000)
                 activeChannels.add(channel)
+                rawOut.write(byteArrayOf(0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0))
+                rawOut.flush()
             } catch (e: Exception) {
                 releaseChannelAndSocket()
+                try {
+                    rawOut.write(byteArrayOf(0x05, 0x05, 0x00, 0x01, 0, 0, 0, 0, 0, 0))
+                    rawOut.flush()
+                } catch (_: Exception) {}
             }
         } catch (e: Exception) {
             try { clientSocket.close() } catch (ignored: Exception) {}
