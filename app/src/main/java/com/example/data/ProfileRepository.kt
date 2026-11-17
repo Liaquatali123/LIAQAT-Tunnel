@@ -83,7 +83,7 @@ class ProfileRepository(private val context: Context) {
             }
 
             // Migrate legacy plaintext JSON only after the entire array parsed.
-            if (!rawText.trim().startsWith("CTP_STORE_V2:")) {
+            if (!rawText.trim().startsWith("CTP_STORE_V3:")) {
                 saveProfilesToFile(list)
             }
         } catch (e: Exception) {
