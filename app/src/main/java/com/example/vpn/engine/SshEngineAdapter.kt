@@ -354,13 +354,16 @@ class SshEngineAdapter : VpnEngineAdapter {
             probeChannel.connect(3500)
             val rtt = (System.currentTimeMillis() - startMs).coerceAtLeast(1L)
             probeChannel.disconnect()
-            AppLogger.i(TAG, "Verified SSH direct-tcpip outbound forwarding via $dnsProbeHost:53 (${rtt} ms)")
+            AppLogger.i(TAG, "SSH direct-tcpip TCP port reachable via $dnsProbeHost:53 (${rtt} ms); full internet not verified")
+            // A successful TCP connect to port 53 proves only that the SSH
+            // server opened a forwarding channel. It does not prove DNS resolution,
+            // HTTPS access, or that Android TUN traffic is reaching the proxy.
             ConnectivityCheckResult(
-                verified = true,
+                verified = false,
                 rttMs = rtt,
                 endpoint = "$dnsProbeHost:53",
-                failureCategory = ProbeFailureCategory.NONE,
-                diagnosticMessage = "Internet Verified (${rtt} ms via SSH direct-tcpip)"
+                failureCategory = ProbeFailureCategory.BLOCKED_PROBE,
+                diagnosticMessage = "SSH Outbound TCP Reachable (${rtt} ms) — Full Internet/TUN traffic not verified"
             )
         } catch (e: Exception) {
             val errMsg = e.message ?: "SSH direct-tcpip channel failed"
