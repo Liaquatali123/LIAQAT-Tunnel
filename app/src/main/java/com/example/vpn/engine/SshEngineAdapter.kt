@@ -272,7 +272,8 @@ class SshEngineAdapter : VpnEngineAdapter {
                 socksAddress = "127.0.0.1",
                 socksPort = localSocksPort,
                 udpMode = "tcp",
-                mapDnsAddress = primaryDns
+                mapDnsAddress = primaryDns,
+                enableIpv6 = !effectiveProfile.blockIpv6
             )
 
             if (!hevStarted) {
