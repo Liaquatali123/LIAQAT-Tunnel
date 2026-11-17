@@ -16,7 +16,7 @@ android {
     applicationId = "com.customtunnelpro.vpn"
     minSdk = 24
     targetSdk = 36
-    versionCode = 2
+    versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()?.plus(2) ?: 2)
     versionName = "2.0.0"
 
     ndk {
@@ -37,10 +37,12 @@ android {
       keyPassword = System.getenv("KEY_PASSWORD")
     }
     create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      // Prefer a persistent private CI keystore so future APKs can update-install over
+      // previous releases. Fall back to the generated Android debug key for local builds.
+      storeFile = file(System.getenv("KEYSTORE_PATH") ?: "${rootDir}/debug.keystore")
+      storePassword = System.getenv("STORE_PASSWORD") ?: "android"
+      keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
+      keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
     }
   }
 
