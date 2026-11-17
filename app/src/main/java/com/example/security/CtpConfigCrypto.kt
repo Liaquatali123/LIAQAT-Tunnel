@@ -34,8 +34,8 @@ sealed class CtpDecryptResult {
 }
 
 /**
- * Authenticated AES-256-GCM encryption engine for Custom Tunnel Pro (.ctp) files
- * and root-resistant local profile storage.
+ * Authenticated AES-256-GCM encryption for Custom Tunnel Pro (.ctp) files,
+ * plus Android Keystore-backed encryption for local profile storage.
  */
 object CtpConfigCrypto {
 
