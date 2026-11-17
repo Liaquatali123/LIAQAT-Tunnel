@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-build-${{ github.ref }}
@@ -143,6 +143,24 @@ jobs:
         continue-on-error: true
         shell: bash
         run: timeout 10m gradle --no-daemon :app:testDebugUnitTest
+
+      - name: Publish APK to GitHub Releases
+        if: github.event_name != 'pull_request' && steps.unit_tests.outcome == 'success'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Custom Tunnel Pro build ${{ github.run_number }}
+          body: |
+            Automated Android build for commit ${{ github.sha }}.
+
+            - Debug APK for ARM64 and ARMv7
+            - Native Xray and HEV libraries verified
+            - GeoIP and GeoSite assets verified
+            - Unit tests passed
+          files: app/build/outputs/apk/debug/app-debug.apk
+          draft: false
+          prerelease: false
+          make_latest: true
 
       - name: Upload debug APK
         if: always()
