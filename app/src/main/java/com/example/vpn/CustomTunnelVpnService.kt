@@ -268,19 +268,20 @@ class CustomTunnelVpnService : VpnService() {
         }
         AppLogger.i(TAG, "TUN DNS set to $dnsPrimary, secondary: ${profile.dnsSecondary}")
 
-        // Deliberate IPv6 leak protection:
-        // When blockIpv6 is true, we route IPv6 to a blackhole or do not configure an IPv6 route,
-        // blocking unauthorized outside-tunnel IPv6 leakage.
-        if (!profile.blockIpv6) {
-            try {
-                builder.addAddress("fd00::1", 64)
-                builder.addRoute("::", 0)
-                AppLogger.i(TAG, "IPv6 tunneling route enabled (::/0)")
-            } catch (e: Exception) {
-                AppLogger.w(TAG, "Could not add IPv6 address to TUN: ${e.message}")
+        // Always capture IPv6 so it cannot escape through the physical network.
+        // When IPv6 is disabled for this profile, HEV is deliberately not configured
+        // with an IPv6 tunnel address, so captured IPv6 packets are dropped inside TUN.
+        try {
+            builder.addAddress("fd00::1", 64)
+            builder.addRoute("::", 0)
+            if (profile.blockIpv6) {
+                AppLogger.i(TAG, "IPv6 leak protection active: IPv6 is captured and not forwarded")
+            } else {
+                AppLogger.i(TAG, "IPv6 tunneling enabled through HEV and the selected proxy engine")
             }
-        } else {
-            AppLogger.i(TAG, "IPv6 leak protection active: IPv6 traffic isolated")
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "Could not establish IPv6 leak protection route: ${e.message}", e)
+            throw IllegalStateException("Unable to secure IPv6 routing; refusing to start VPN", e)
         }
 
         // Per-App Split Tunneling (always exclude self package to prevent routing loops)
