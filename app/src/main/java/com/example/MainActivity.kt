@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.example.model.ProtocolType
 import com.example.model.VpnProfile
@@ -237,12 +239,18 @@ fun MainAppContent(viewModel: VpnViewModel) {
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             if (!isImporting && editingProfile == null && !isCreatingNew) {
-                NavigationBar(modifier = Modifier.testTag("main_navigation_bar")) {
+                NavigationBar(
+                    modifier = Modifier.testTag("main_navigation_bar"),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    tonalElevation = 8.dp
+                ) {
                     NavigationBarItem(
                         selected = currentTab == ScreenTab.HOME,
                         onClick = { currentTab = ScreenTab.HOME },
                         icon = { Icon(Icons.Default.Shield, contentDescription = "Home") },
                         label = { Text("Home", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) },
+                        colors = NavigationBarItemDefaults.colors(\n                            selectedIconColor = MaterialTheme.colorScheme.primary,\n                            selectedTextColor = MaterialTheme.colorScheme.primary,\n                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,\n                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,\n                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant\n                        ),
                         modifier = Modifier.testTag("tab_home")
                     )
                     NavigationBarItem(
@@ -250,6 +258,7 @@ fun MainAppContent(viewModel: VpnViewModel) {
                         onClick = { currentTab = ScreenTab.PROFILES },
                         icon = { Icon(Icons.Default.Layers, contentDescription = "Profiles") },
                         label = { Text("Profiles", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) },
+                        colors = NavigationBarItemDefaults.colors(\n                            selectedIconColor = MaterialTheme.colorScheme.primary,\n                            selectedTextColor = MaterialTheme.colorScheme.primary,\n                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,\n                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,\n                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant\n                        ),
                         modifier = Modifier.testTag("tab_profiles")
                     )
                     NavigationBarItem(
@@ -257,6 +266,7 @@ fun MainAppContent(viewModel: VpnViewModel) {
                         onClick = { currentTab = ScreenTab.DNS },
                         icon = { Icon(Icons.Default.Dns, contentDescription = "DNS & Routing") },
                         label = { Text("DNS", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) },
+                        colors = NavigationBarItemDefaults.colors(\n                            selectedIconColor = MaterialTheme.colorScheme.primary,\n                            selectedTextColor = MaterialTheme.colorScheme.primary,\n                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,\n                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,\n                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant\n                        ),
                         modifier = Modifier.testTag("tab_dns")
                     )
                     NavigationBarItem(
@@ -264,6 +274,7 @@ fun MainAppContent(viewModel: VpnViewModel) {
                         onClick = { currentTab = ScreenTab.LOGS },
                         icon = { Icon(Icons.Default.Terminal, contentDescription = "Logs") },
                         label = { Text("Logs", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) },
+                        colors = NavigationBarItemDefaults.colors(\n                            selectedIconColor = MaterialTheme.colorScheme.primary,\n                            selectedTextColor = MaterialTheme.colorScheme.primary,\n                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,\n                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,\n                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant\n                        ),
                         modifier = Modifier.testTag("tab_logs")
                     )
                     NavigationBarItem(
@@ -271,6 +282,7 @@ fun MainAppContent(viewModel: VpnViewModel) {
                         onClick = { currentTab = ScreenTab.SETTINGS },
                         icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
                         label = { Text("Settings", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) },
+                        colors = NavigationBarItemDefaults.colors(\n                            selectedIconColor = MaterialTheme.colorScheme.primary,\n                            selectedTextColor = MaterialTheme.colorScheme.primary,\n                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,\n                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,\n                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant\n                        ),
                         modifier = Modifier.testTag("tab_settings")
                     )
                 }
