@@ -129,8 +129,8 @@ data class VpnProfile(
     val sshRemoteListenPort: Int = 8080,
     val allowInsecureSsl: Boolean = false,
     // Routing & DNS
-    val dnsPrimary: String = "1.1.1.1",
-    val dnsSecondary: String = "8.8.8.8",
+    val dnsPrimary: String = "", // Blank means use the current underlying network DNS
+    val dnsSecondary: String = "",
     val blockIpv6: Boolean = true,
     val perAppProxy: Boolean = false,
     val selectedApps: List<String> = emptyList(),
