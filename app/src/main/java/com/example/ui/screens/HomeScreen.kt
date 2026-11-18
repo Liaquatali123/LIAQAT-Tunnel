@@ -213,7 +213,7 @@ fun HomeScreen(
         val profileLiquidColor = if (vpnState.isConnected) {
             ConnectedGreen
         } else {
-            Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFFB7F36B)
+            Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFF9AA8FF)
         }
         GlassCard(
             modifier = Modifier
@@ -221,7 +221,7 @@ fun HomeScreen(
                 .clickable { onNavigateToProfiles() }
                 .testTag("selected_profile_card"),
             cornerRadius = 20.dp,
-            enableLiquidWave = true,
+            enableLiquidWave = false,
             liquidColor = profileLiquidColor,
             liquidFillFraction = if (vpnState.isConnected) 0.42f else 0.28f,
             liquidStateKey = "${selectedProfile?.id}_${vpnState.isConnected}"
@@ -238,7 +238,7 @@ fun HomeScreen(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFFB7F36B).copy(alpha = 0.2f),
+                        color = Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFF9AA8FF).copy(alpha = 0.2f),
                         modifier = Modifier.size(44.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -344,7 +344,7 @@ fun HomeScreen(
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
             cornerRadius = 16.dp,
-            enableLiquidWave = true,
+            enableLiquidWave = false,
             liquidColor = if (vpnState.isConnected) ConnectedGreen else CyanPrimaryDark,
             liquidFillFraction = 0.25f,
             liquidStateKey = vpnState.isConnected
