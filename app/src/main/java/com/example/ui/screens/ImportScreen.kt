@@ -312,23 +312,27 @@ fun ImportScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             SuggestionChip(onClick = {
-                inputText = "vmess://djp2bWVzc0BnZWVrc3Zwbi5rZXZpbnRlY2h0dXRvcmlhbHMuZnVuOjQ0Mz90eXBlPXdzJnBhdGg9L3ZtZXNzJnNlY3VyaXR5PXRscyZ1dWlkPWE0ODFjYzVlLTBlZGYtNDFiYy04NTQwLWM2ODRiMjYwMDk2Mg=="
-                validateAndParse(inputText)
+                val sample = "vmess://djp2bWVzc0BnZWVrc3Zwbi5rZXZpbnRlY2h0dXRvcmlhbHMuZnVuOjQ0Mz90eXBlPXdzJnBhdGg9L3ZtZXNzJnNlY3VyaXR5PXRscyZ1dWlkPWE0ODFjYzVlLTBlZGYtNDFiYy04NTQwLWM2ODRiMjYwMDk2Mg=="
+                inputText = sample
+                validateAndParse(sample)
             }, label = { Text("VMess") })
 
             SuggestionChip(onClick = {
-                inputText = "vless://d342d110-d4a3-4513-bfa6-07a5e0f0ff37@example.com:443?security=tls&type=ws&sni=example.com#VLESS-Demo"
-                validateAndParse(inputText)
+                val sample = "vless://d342d110-d4a3-4513-bfa6-07a5e0f0ff37@example.com:443?security=tls&type=ws&sni=example.com#VLESS-Demo"
+                inputText = sample
+                validateAndParse(sample)
             }, label = { Text("VLESS") })
 
             SuggestionChip(onClick = {
-                inputText = "trojan://password123@secure.vpn.org:443?sni=secure.vpn.org#Trojan-Demo"
-                validateAndParse(inputText)
+                val sample = "trojan://password123@secure.vpn.org:443?sni=secure.vpn.org#Trojan-Demo"
+                inputText = sample
+                validateAndParse(sample)
             }, label = { Text("Trojan") })
 
             SuggestionChip(onClick = {
-                inputText = "ssh://root:secret@128.199.192.1:22#SSH-Demo"
-                validateAndParse(inputText)
+                val sample = "ssh://root:secret@128.199.192.1:22#SSH-Demo"
+                inputText = sample
+                validateAndParse(sample)
             }, label = { Text("SSH") })
         }
 
