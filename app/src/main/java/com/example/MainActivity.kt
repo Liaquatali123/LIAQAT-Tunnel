@@ -250,7 +250,13 @@ fun MainAppContent(viewModel: VpnViewModel) {
                         onClick = { currentTab = ScreenTab.HOME },
                         icon = { Icon(Icons.Default.Shield, contentDescription = "Home") },
                         label = { Text("Home", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) },
-                        colors = NavigationBarItemDefaults.colors(\n                            selectedIconColor = MaterialTheme.colorScheme.primary,\n                            selectedTextColor = MaterialTheme.colorScheme.primary,\n                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,\n                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,\n                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant\n                        ),
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
                         modifier = Modifier.testTag("tab_home")
                     )
                     NavigationBarItem(
@@ -258,7 +264,13 @@ fun MainAppContent(viewModel: VpnViewModel) {
                         onClick = { currentTab = ScreenTab.PROFILES },
                         icon = { Icon(Icons.Default.Layers, contentDescription = "Profiles") },
                         label = { Text("Profiles", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) },
-                        colors = NavigationBarItemDefaults.colors(\n                            selectedIconColor = MaterialTheme.colorScheme.primary,\n                            selectedTextColor = MaterialTheme.colorScheme.primary,\n                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,\n                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,\n                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant\n                        ),
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
                         modifier = Modifier.testTag("tab_profiles")
                     )
                     NavigationBarItem(
@@ -266,7 +278,13 @@ fun MainAppContent(viewModel: VpnViewModel) {
                         onClick = { currentTab = ScreenTab.DNS },
                         icon = { Icon(Icons.Default.Dns, contentDescription = "DNS & Routing") },
                         label = { Text("DNS", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) },
-                        colors = NavigationBarItemDefaults.colors(\n                            selectedIconColor = MaterialTheme.colorScheme.primary,\n                            selectedTextColor = MaterialTheme.colorScheme.primary,\n                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,\n                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,\n                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant\n                        ),
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
                         modifier = Modifier.testTag("tab_dns")
                     )
                     NavigationBarItem(
@@ -274,7 +292,13 @@ fun MainAppContent(viewModel: VpnViewModel) {
                         onClick = { currentTab = ScreenTab.LOGS },
                         icon = { Icon(Icons.Default.Terminal, contentDescription = "Logs") },
                         label = { Text("Logs", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) },
-                        colors = NavigationBarItemDefaults.colors(\n                            selectedIconColor = MaterialTheme.colorScheme.primary,\n                            selectedTextColor = MaterialTheme.colorScheme.primary,\n                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,\n                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,\n                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant\n                        ),
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
                         modifier = Modifier.testTag("tab_logs")
                     )
                     NavigationBarItem(
@@ -282,7 +306,13 @@ fun MainAppContent(viewModel: VpnViewModel) {
                         onClick = { currentTab = ScreenTab.SETTINGS },
                         icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
                         label = { Text("Settings", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false) },
-                        colors = NavigationBarItemDefaults.colors(\n                            selectedIconColor = MaterialTheme.colorScheme.primary,\n                            selectedTextColor = MaterialTheme.colorScheme.primary,\n                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,\n                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,\n                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant\n                        ),
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
                         modifier = Modifier.testTag("tab_settings")
                     )
                 }
