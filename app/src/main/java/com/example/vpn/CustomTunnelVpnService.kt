@@ -62,6 +62,44 @@ class CustomTunnelVpnService : VpnService() {
     @Volatile
     private var underlyingNetworkChanged = false
 
+    @Volatile
+    private var underlyingDnsServers: List<String> = emptyList()
+
+    /** DNS addresses captured from the physical default network before the VPN TUN is established. */
+    fun getUnderlyingDnsServers(): List<String> = underlyingDnsServers
+
+    private fun captureUnderlyingDnsServers(): List<String> {
+        return try {
+            val network = connectivityManager.activeNetwork
+            if (network == null) {
+                AppLogger.w(TAG, "No active physical network available for automatic DNS")
+                emptyList()
+            } else {
+                val capabilities = connectivityManager.getNetworkCapabilities(network)
+                if (capabilities == null || !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)) {
+                    AppLogger.w(TAG, "Active network is not a physical network; automatic DNS snapshot unavailable")
+                    emptyList()
+                } else {
+                    val addresses = connectivityManager.getLinkProperties(network)
+                        ?.dnsServers
+                        ?.filterNot { it.isLoopbackAddress || it.isAnyLocalAddress }
+                        ?.map { it.hostAddress.substringBefore('%') }
+                        ?.distinct()
+                        .orEmpty()
+                    AppLogger.i(TAG, if (addresses.isEmpty()) {
+                        "No DNS addresses reported by the physical network"
+                    } else {
+                        "Captured ${addresses.size} DNS server(s) from the physical network"
+                    })
+                    addresses
+                }
+            }
+        } catch (e: Exception) {
+            AppLogger.w(TAG, "Could not read physical network DNS: ${e.message}")
+            emptyList()
+        }
+    }
+
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onLost(network: Network) {
             AppLogger.w(TAG, "Underlying physical network lost")
@@ -175,6 +213,10 @@ class CustomTunnelVpnService : VpnService() {
                     cleanupSuspend()
 
                     if (myGen != connectionGeneration.get()) return@withLock
+
+                    // Snapshot the real SIM/Wi-Fi DNS before establishTun changes the default network.
+                    // Xray uses these addresses in TCP-local mode for automatic DNS.
+                    underlyingDnsServers = captureUnderlyingDnsServers()
 
                     // Establish TUN interface
                     val tunPfd = establishTun(effectiveProfile)
