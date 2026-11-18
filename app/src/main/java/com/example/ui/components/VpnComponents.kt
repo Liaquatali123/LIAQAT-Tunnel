@@ -344,12 +344,6 @@ fun ConnectButton(
         else -> CyanPrimaryDark to CyanPrimaryDark.copy(alpha = 0.25f)
     }
 
-    val liquidFill = when {
-        state.isConnected -> 0.48f
-        state.isBusy -> 0.36f
-        else -> 0.24f
-    }
-
     val animatedColor by animateColorAsState(targetValue = buttonColor, label = "buttonColor")
 
     Box(
@@ -407,44 +401,37 @@ fun ConnectButton(
             border = BorderStroke(3.dp, animatedColor),
             shadowElevation = 8.dp
         ) {
-            InteractiveLiquidLayer(
-                liquidColor = animatedColor,
-                baseFillFraction = liquidFill,
-                stateKey = state::class.simpleName,
-                modifier = Modifier.fillMaxSize()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = when {
-                            state.isConnected -> Icons.Default.Lock
-                            state.isBusy -> Icons.Default.Shield
-                            else -> Icons.Default.PowerSettingsNew
-                        },
-                        contentDescription = "Connection Button",
-                        tint = animatedColor,
-                        modifier = Modifier.size(46.dp)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = when {
-                            state.isConnected -> "DISCONNECT"
-                            state is VpnState.Stopping -> "STOPPING"
-                            state.isBusy -> "CONNECTING"
-                            else -> "CONNECT"
-                        },
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.2.sp
-                        ),
-                        color = animatedColor
-                    )
-                }
+                Icon(
+                    imageVector = when {
+                        state.isConnected -> Icons.Default.Lock
+                        state.isBusy -> Icons.Default.Shield
+                        else -> Icons.Default.PowerSettingsNew
+                    },
+                    contentDescription = "Connection Button",
+                    tint = animatedColor,
+                    modifier = Modifier.size(46.dp)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = when {
+                        state.isConnected -> "DISCONNECT"
+                        state is VpnState.Stopping -> "STOPPING"
+                        state.isBusy -> "CONNECTING"
+                        else -> "CONNECT"
+                    },
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp
+                    ),
+                    color = animatedColor
+                )
             }
         }
     }
