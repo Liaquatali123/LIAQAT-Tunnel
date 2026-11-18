@@ -666,7 +666,8 @@ class ExampleUnitTest {
             adapter.buildXrayConfig(
                 profile = profile,
                 localPort = 10808,
-                resolvedServerIps = listOf("104.21.10.1", "172.67.10.2")
+                resolvedServerIps = listOf("104.21.10.1", "172.67.10.2"),
+                underlyingDnsServers = listOf("192.0.2.53", "2001:db8::53")
             )
         )
 
@@ -719,10 +720,11 @@ class ExampleUnitTest {
         val hosts = dns.getJSONObject("hosts")
         assertTrue(hosts.has("cf-tunnel.example.com"))
         val dnsServers = dns.getJSONArray("servers")
-        // The test profile leaves dnsPrimary blank: automatic mode must delegate to Android's
-        // current network resolver instead of silently forcing Cloudflare/Google DNS.
-        assertEquals(1, dnsServers.length())
-        assertEquals("localhost", dnsServers.getString(0))
+        // The test profile leaves dnsPrimary blank: automatic mode uses the captured
+        // physical SIM/Wi-Fi DNS resolvers directly, not hardcoded public DNS.
+        assertEquals(2, dnsServers.length())
+        assertEquals("tcp+local://192.0.2.53:53", dnsServers.getString(0))
+        assertEquals("tcp+local://[2001:db8::53]:53", dnsServers.getString(1))
 
         // Explicit custom DNS must still be emitted as TCP DNS.
         val customDnsProfile = profile.copy(dnsPrimary = "9.9.9.9", dnsSecondary = "149.112.112.112")
