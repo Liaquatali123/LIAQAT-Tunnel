@@ -70,7 +70,7 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Settings & Architecture",
+            text = "Settings",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onBackground
         )
@@ -79,7 +79,7 @@ fun SettingsScreen(
         GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
-                    text = "Application Behavior",
+                    text = "Connection & App Behavior",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -92,7 +92,7 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Pro Tunnel Mode", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-                        Text("Exposes advanced diagnostic telemetry, packet stats, and raw configuration parameters", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Shows advanced diagnostics and packet statistics when available", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(
                         checked = settings.proMode,
@@ -110,8 +110,8 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Auto-Reconnect with Backoff", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-                        Text("Automatically retries connection up to 5 times with bounded exponential delays on network disruption", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Automatic Reconnect", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                        Text("Retries the tunnel after network interruptions, using increasing delays", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(
                         checked = settings.autoReconnect,
@@ -132,8 +132,8 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("DNS & Routing Configuration", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-                        Text("Configure upstream DNS resolvers (Cloudflare, Google, AdGuard), IPv6 leak isolation", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("DNS & Routing", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                        Text("Manage DNS resolver selection and IPv6 routing protection", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
@@ -149,14 +149,14 @@ fun SettingsScreen(
         GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 16.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Theme Appearance",
+                    text = "Appearance",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.primary
                 )
 
                 listOf(
                     "system" to "System Default",
-                    "dark" to "Dark Cyber Mode",
+                    "dark" to "Dark Mode",
                     "light" to "Light Mode"
                 ).forEach { (code, label) ->
                     Row(
@@ -187,20 +187,20 @@ fun SettingsScreen(
                 ) {
                     Icon(Icons.Default.Memory, contentDescription = null, tint = ConnectedGreen)
                     Text(
-                        text = "Native ABI Architecture Audit",
+                        text = "Supported CPU Architectures",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                     )
                 }
 
                 Text(
-                    text = "Custom Tunnel Pro embeds native dual-architecture .so binaries for both 64-bit and 32-bit ARM chipsets:",
+                    text = "Native tunnel components are provided for these Android ARM architectures:",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                AbiVerificationRow("arm64-v8a (64-bit ARM)", "Verified in APK (libgojni.so + libhev-socks5-tunnel.so)")
-                AbiVerificationRow("armeabi-v7a (32-bit ARM)", "Verified in APK (libgojni.so + libhev-socks5-tunnel.so)")
-                AbiVerificationRow("Current Active Device ABI", activeAbi)
+                AbiVerificationRow("arm64-v8a (64-bit ARM)", "Native libraries: libgojni.so + libhev-socks5-tunnel.so")
+                AbiVerificationRow("armeabi-v7a (32-bit ARM)", "Native libraries: libgojni.so + libhev-socks5-tunnel.so")
+                AbiVerificationRow("Device ABI", activeAbi)
             }
         }
 
@@ -225,7 +225,7 @@ fun SettingsScreen(
             }
         }
 
-        // About & Legal Actions
+        // Legal & Privacy
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
