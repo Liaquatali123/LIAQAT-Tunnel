@@ -719,10 +719,17 @@ class ExampleUnitTest {
         val hosts = dns.getJSONObject("hosts")
         assertTrue(hosts.has("cf-tunnel.example.com"))
         val dnsServers = dns.getJSONArray("servers")
-        assertEquals("tcp://1.1.1.1:53", dnsServers.getString(0))
-        for (i in 0 until dnsServers.length()) {
-            assertTrue("All Xray DNS servers must use tcp:// transport", dnsServers.getString(i).startsWith("tcp://"))
-        }
+        // The test profile leaves dnsPrimary blank: automatic mode must delegate to Android's
+        // current network resolver instead of silently forcing Cloudflare/Google DNS.
+        assertEquals(1, dnsServers.length())
+        assertEquals("localhost", dnsServers.getString(0))
+
+        // Explicit custom DNS must still be emitted as TCP DNS.
+        val customDnsProfile = profile.copy(dnsPrimary = "9.9.9.9", dnsSecondary = "149.112.112.112")
+        val customDns = JSONObject(adapter.buildXrayConfig(customDnsProfile, 10808))
+            .getJSONObject("dns").getJSONArray("servers")
+        assertEquals("tcp://9.9.9.9:53", customDns.getString(0))
+        assertEquals("tcp://149.112.112.112:53", customDns.getString(1))
         assertEquals("AsIs", json.getJSONObject("routing").getString("domainStrategy"))
 
         // Verify first routing rule routes port 53 to dns-out, second routes dns-in to proxy, and third blocks QUIC over WS/TCP
