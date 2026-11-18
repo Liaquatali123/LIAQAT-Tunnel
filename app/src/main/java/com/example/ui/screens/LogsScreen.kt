@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -69,6 +71,7 @@ fun LogsScreen(
     val context = LocalContext.current
     val logs by viewModel.logs.collectAsState()
     var selectedLevel by remember { mutableStateOf<LogLevel?>(null) }
+    var showClearConfirmation by remember { mutableStateOf(false) }
 
     val filteredLogs = remember(logs, selectedLevel) {
         if (selectedLevel == null) logs else logs.filter { it.level == selectedLevel }
@@ -98,7 +101,7 @@ fun LogsScreen(
         ) {
             Column {
                 Text(
-                    text = "Engine Logs",
+                    text = "Connection Logs",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -136,7 +139,7 @@ fun LogsScreen(
                 }
 
                 IconButton(
-                    onClick = { viewModel.clearLogs() },
+                    onClick = { showClearConfirmation = true },
                     modifier = Modifier.testTag("clear_logs_button")
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = "Clear Logs", tint = DisconnectedRed)
@@ -237,5 +240,31 @@ fun LogsScreen(
                 }
             }
         }
+    }
+
+    if (showClearConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirmation = false },
+            title = { Text("Clear connection logs?") },
+            text = {
+                Text("This removes the log entries currently stored in the app. This action cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearLogs()
+                        showClearConfirmation = false
+                    },
+                    modifier = Modifier.testTag("confirm_clear_logs_button")
+                ) {
+                    Text("Clear logs")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
