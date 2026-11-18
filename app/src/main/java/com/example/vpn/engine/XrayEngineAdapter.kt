@@ -72,7 +72,12 @@ class XrayEngineAdapter : VpnEngineAdapter {
                 AppLogger.i(TAG, "Pre-resolved ${profile.server} -> ${resolvedIps.joinToString(", ")}")
             }
 
-            val configJson = buildXrayConfig(profile, localSocksPort, resolvedIps)
+            val configJson = buildXrayConfig(
+                profile = profile,
+                localPort = localSocksPort,
+                resolvedServerIps = resolvedIps,
+                underlyingDnsServers = vpnService.getUnderlyingDnsServers()
+            )
             AppLogger.i(
                 TAG,
                 "Generated Xray configuration for protocol: ${profile.protocol.displayName} " +
@@ -423,10 +428,17 @@ class XrayEngineAdapter : VpnEngineAdapter {
         return if (trimmed.contains(":")) "tcp://$trimmed" else "tcp://$trimmed:53"
     }
 
+    private fun formatLocalTcpDnsServer(rawDns: String): String {
+        val address = rawDns.trim()
+        val host = if (address.contains(":") && !address.startsWith("[")) "[$address]" else address
+        return "tcp+local://$host:53"
+    }
+
     fun buildXrayConfig(
         profile: VpnProfile,
         localPort: Int,
-        resolvedServerIps: List<String> = emptyList()
+        resolvedServerIps: List<String> = emptyList(),
+        underlyingDnsServers: List<String> = emptyList()
     ): String {
         validateProfile(profile)
 
@@ -801,15 +813,20 @@ class XrayEngineAdapter : VpnEngineAdapter {
             val primaryDns = profile.dnsPrimary.trim()
             val secondaryDns = profile.dnsSecondary.trim()
             val servers = JSONArray().apply {
-                if (primaryDns.isBlank()) {
-                    // "localhost" delegates resolution to Android's current network resolver.
-                    // The VPN service package is excluded from its own TUN to avoid a DNS loop.
-                    put("localhost")
-                } else {
+                if (primaryDns.isNotBlank()) {
+                    // Explicit profile DNS is sent through the selected proxy outbound.
                     put(formatTcpDnsServer(primaryDns))
                     if (secondaryDns.isNotBlank() && secondaryDns != primaryDns) {
                         put(formatTcpDnsServer(secondaryDns))
                     }
+                } else if (underlyingDnsServers.isNotEmpty()) {
+                    // Automatic mode uses the actual SIM/Wi-Fi resolver captured before VPN setup.
+                    // tcp+local bypasses Xray routing and uses the physical network directly.
+                    underlyingDnsServers.distinct().forEach { put(formatLocalTcpDnsServer(it)) }
+                } else {
+                    // Last-resort system resolver; log makes this fallback visible for diagnosis.
+                    AppLogger.w(TAG, "Automatic DNS snapshot unavailable; falling back to Xray localhost resolver")
+                    put("localhost")
                 }
             }
             put("servers", servers)
