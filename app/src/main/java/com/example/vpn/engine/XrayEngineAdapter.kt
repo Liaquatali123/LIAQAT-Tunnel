@@ -798,12 +798,18 @@ class XrayEngineAdapter : VpnEngineAdapter {
             }
             put("hosts", hosts)
 
-            val primaryDns = profile.dnsPrimary.trim().ifBlank { "1.1.1.1" }
-            val secondaryDns = profile.dnsSecondary.trim().ifBlank { "8.8.8.8" }
+            val primaryDns = profile.dnsPrimary.trim()
+            val secondaryDns = profile.dnsSecondary.trim()
             val servers = JSONArray().apply {
-                put(formatTcpDnsServer(primaryDns))
-                if (secondaryDns != primaryDns) {
-                    put(formatTcpDnsServer(secondaryDns))
+                if (primaryDns.isBlank()) {
+                    // "localhost" delegates resolution to Android's current network resolver.
+                    // The VPN service package is excluded from its own TUN to avoid a DNS loop.
+                    put("localhost")
+                } else {
+                    put(formatTcpDnsServer(primaryDns))
+                    if (secondaryDns.isNotBlank() && secondaryDns != primaryDns) {
+                        put(formatTcpDnsServer(secondaryDns))
+                    }
                 }
             }
             put("servers", servers)
