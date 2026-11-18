@@ -147,12 +147,12 @@ fun ProfilesScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "VPN Profiles",
+                        text = "Your Profiles",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "${profiles.size} configured tunnels • HWID: $deviceHwid",
+                        text = "${profiles.size} saved tunnel${if (profiles.size == 1) "" else "s"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
