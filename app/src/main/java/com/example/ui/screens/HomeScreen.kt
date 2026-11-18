@@ -117,12 +117,12 @@ fun HomeScreen(
         ) {
             Column {
                 Text(
-                    text = "Custom Tunnel Pro",
+                    text = "CUSTOM TUNNEL PRO",
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = if (settings.proMode) "Pro Tunnel Mode • Liaqat Ali (@LiaqatAliPro)" else "Simple Mode • @LiaqatAliPro",
+                    text = if (settings.proMode) "PRO TUNNEL MODE  ·  SECURE CONNECTION" else "PRIVATE CONNECTION  ·  SIMPLE MODE",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -213,7 +213,7 @@ fun HomeScreen(
         val profileLiquidColor = if (vpnState.isConnected) {
             ConnectedGreen
         } else {
-            Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFF00E5FF)
+            Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFFB7F36B)
         }
         GlassCard(
             modifier = Modifier
@@ -238,14 +238,14 @@ fun HomeScreen(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFF00E5FF).copy(alpha = 0.2f),
+                        color = Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFFB7F36B).copy(alpha = 0.2f),
                         modifier = Modifier.size(44.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.Shield,
                                 contentDescription = null,
-                                tint = Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFF00E5FF),
+                                tint = Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFFB7F36B),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -266,7 +266,7 @@ fun HomeScreen(
                             Text(
                                 text = selectedProfile?.protocol?.displayName ?: "Select config",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFF00E5FF)
+                                color = Color(selectedProfile?.protocol?.badgeColorHex ?: 0xFFB7F36B)
                             )
                             Text(
                                 text = "•",
@@ -335,7 +335,7 @@ fun HomeScreen(
                 value = formatBytes(trafficStats.bytesOut),
                 speed = formatSpeed(trafficStats.speedOutBytesPerSec),
                 icon = Icons.Default.ArrowUpward,
-                tint = Color(0xFF38BDF8),
+                tint = Color(0xFF78D8C3),
                 modifier = Modifier.weight(1f)
             )
         }
@@ -367,7 +367,7 @@ fun HomeScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            text = "Tunnel DNS",
+                            text = "DNS RESOLVER",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
@@ -401,7 +401,7 @@ fun HomeScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            text = "IPv6 Leak Isolation",
+                            text = "IPv6 PROTECTION",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
