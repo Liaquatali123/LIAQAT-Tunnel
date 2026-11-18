@@ -261,13 +261,21 @@ class CustomTunnelVpnService : VpnService() {
             .addAddress("198.18.0.1", 24)
             .addRoute("0.0.0.0", 0)
 
-        // DNS Server configuration
-        val dnsPrimary = profile.dnsPrimary.ifBlank { "1.1.1.1" }
-        builder.addDnsServer(dnsPrimary)
-        if (profile.dnsSecondary.isNotBlank()) {
-            builder.addDnsServer(profile.dnsSecondary)
+        // DNS configuration:
+        // An empty primary DNS intentionally leaves Builder DNS unset. Android then
+        // uses the DNS servers of the current underlying/default network (SIM or Wi-Fi).
+        // A non-empty value explicitly pins DNS to the profile's custom resolver.
+        val dnsPrimary = profile.dnsPrimary.trim()
+        if (dnsPrimary.isNotBlank()) {
+            builder.addDnsServer(dnsPrimary)
+            val dnsSecondary = profile.dnsSecondary.trim()
+            if (dnsSecondary.isNotBlank() && !dnsSecondary.equals(dnsPrimary, ignoreCase = true)) {
+                builder.addDnsServer(dnsSecondary)
+            }
+            AppLogger.i(TAG, "TUN custom DNS enabled: primary=$dnsPrimary, secondary=${profile.dnsSecondary}")
+        } else {
+            AppLogger.i(TAG, "TUN DNS automatic: using current underlying network DNS (SIM/Wi-Fi)")
         }
-        AppLogger.i(TAG, "TUN DNS set to $dnsPrimary, secondary: ${profile.dnsSecondary}")
 
         // Always capture IPv6 so it cannot escape through the physical network.
         // When IPv6 is disabled for this profile, HEV is deliberately not configured
