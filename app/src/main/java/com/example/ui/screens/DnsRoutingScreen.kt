@@ -60,7 +60,7 @@ fun DnsRoutingScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "DNS & Routing Engine",
+            text = "DNS & Routing",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onBackground
         )
@@ -80,7 +80,7 @@ fun DnsRoutingScreen(
                 }
 
                 Text(
-                    text = "All DNS queries inside the tunnel are encrypted and resolved through the selected upstream resolver.",
+                    text = "DNS requests are sent to the selected upstream resolver. Encryption depends on the configured DNS transport.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
