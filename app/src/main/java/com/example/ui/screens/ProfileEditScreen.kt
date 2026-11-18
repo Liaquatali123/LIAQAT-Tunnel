@@ -97,7 +97,7 @@ fun ProfileEditScreen(
     var allowInsecureSsl by remember { mutableStateOf(initialProfile?.allowInsecureSsl ?: false) }
 
     // DNS & IPv6
-    var dnsPrimary by remember { mutableStateOf(initialProfile?.dnsPrimary ?: "1.1.1.1") }
+    var dnsPrimary by remember { mutableStateOf(initialProfile?.dnsPrimary ?: "") }
     var blockIpv6 by remember { mutableStateOf(initialProfile?.blockIpv6 ?: true) }
     var perAppProxy by remember { mutableStateOf(initialProfile?.perAppProxy ?: false) }
     var selectedAppsText by remember { mutableStateOf(initialProfile?.selectedApps?.joinToString(", ") ?: "") }
@@ -866,10 +866,21 @@ fun ProfileEditScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
+                FilterChip(
+                    selected = dnsPrimary.isBlank(),
+                    onClick = { dnsPrimary = "" },
+                    label = { Text("Automatic (SIM / Wi-Fi DNS)") }
+                )
+                Text(
+                    text = "Automatic uses the DNS supplied by your current mobile or Wi-Fi network. Enter an IP below only to force a custom DNS server.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 OutlinedTextField(
                     value = dnsPrimary,
                     onValueChange = { dnsPrimary = it },
-                    label = { Text("Tunnel DNS Server") },
+                    label = { Text("Custom Tunnel DNS (optional)") },
+                    placeholder = { Text("Leave empty for network DNS") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
