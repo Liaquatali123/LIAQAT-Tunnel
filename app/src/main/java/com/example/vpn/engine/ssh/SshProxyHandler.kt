@@ -76,6 +76,13 @@ object SshProxyHandler {
         socket.soTimeout = 0
     }
 
+    internal fun isIpv4Literal(host: String): Boolean {
+        val parts = host.split(".")
+        return parts.size == 4 && parts.all { part ->
+            part.isNotEmpty() && part.all { it in '0'..'9' } &&
+                (part.toIntOrNull()?.let { it in 0..255 } == true)
+        }
+    }
     fun connectSocks4(
         socket: Socket,
         proxyHost: String,
@@ -96,8 +103,9 @@ object SshProxyHandler {
 
         require(targetPort in 1..65535) { "Invalid SOCKS4 target port" }
         // Only numeric IPv4 literals are resolved locally; hostnames use SOCKS4a to avoid DNS leaks.
-        val ipv4Literal = targetHost.matches(Regex("^\\\\d{1,3}(\\\\.\\\\d{1,3}){3}$"))
-        val literalAddress = if (ipv4Literal) runCatching { InetAddress.getByName(targetHost).address.takeIf { it.size == 4 } }.getOrNull() else null
+        val literalAddress = if (isIpv4Literal(targetHost)) {
+            runCatching { InetAddress.getByName(targetHost).address.takeIf { it.size == 4 } }.getOrNull()
+        } else null
 
         out.writeByte(0x04) // SOCKS version 4
         out.writeByte(0x01) // Command: CONNECT

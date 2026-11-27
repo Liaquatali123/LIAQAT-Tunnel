@@ -66,6 +66,7 @@ fun ProfileEditScreen(
     var server by remember { mutableStateOf(initialProfile?.server ?: "") }
     var portText by remember { mutableStateOf(initialProfile?.port?.toString() ?: if (protocol == ProtocolType.SSH) "22" else "443") }
     var password by remember { mutableStateOf(initialProfile?.password ?: "") }
+    var socksUsername by remember { mutableStateOf(initialProfile?.socksUsername ?: "") }
     var security by remember { mutableStateOf(initialProfile?.security ?: if (protocol == ProtocolType.SSH) "none" else "tls") }
     var network by remember { mutableStateOf(initialProfile?.network ?: "tcp") }
     var sni by remember { mutableStateOf(initialProfile?.sni ?: "") }
@@ -795,6 +796,16 @@ fun ProfileEditScreen(
                         modifier = Modifier.fillMaxWidth().testTag("edit_xray_credential"),
                         shape = RoundedCornerShape(12.dp)
                     )
+                    if (protocol == ProtocolType.SOCKS5) {
+                        OutlinedTextField(
+                            value = socksUsername,
+                            onValueChange = { socksUsername = it },
+                            label = { Text("SOCKS5 Username (optional)") },
+                            modifier = Modifier.fillMaxWidth().testTag("edit_socks5_username"),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1021,6 +1032,7 @@ fun ProfileEditScreen(
                         server = effectiveServer,
                         port = effectivePort,
                         password = effectivePass,
+                        socksUsername = socksUsername.trim(),
                         security = security,
                         network = network,
                         sni = sni,

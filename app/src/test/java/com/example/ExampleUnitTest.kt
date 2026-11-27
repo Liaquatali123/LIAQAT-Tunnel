@@ -7,6 +7,7 @@ import com.example.model.VpnState
 import com.example.parser.ConfigParser
 import com.example.parser.ParseResult
 import com.example.vpn.engine.PayloadInjector
+import com.example.vpn.engine.ssh.SshProxyHandler
 import com.example.vpn.engine.XrayEngineAdapter
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -1405,6 +1406,15 @@ class ExampleUnitTest {
         val profile = (result as ParseResult.Success).profile
         assertEquals(ProtocolType.SHADOWSOCKS, profile.protocol)
         assertEquals("chacha20-ietf-poly1305:secret", profile.password)
+    }
+
+    @Test
+    fun testSocks4Ipv4LiteralDetection() {
+        assertTrue(SshProxyHandler.isIpv4Literal("192.168.1.1"))
+        assertTrue(SshProxyHandler.isIpv4Literal("8.8.8.8"))
+        assertFalse(SshProxyHandler.isIpv4Literal("example.com"))
+        assertFalse(SshProxyHandler.isIpv4Literal("999.1.1.1"))
+        assertFalse(SshProxyHandler.isIpv4Literal("2001:db8::1"))
     }
 
 }
