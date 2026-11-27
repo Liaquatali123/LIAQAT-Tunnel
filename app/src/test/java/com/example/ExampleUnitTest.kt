@@ -1339,4 +1339,34 @@ class ExampleUnitTest {
         assertTrue((result as ParseResult.Failure).reason.contains("transport"))
     }
 
+
+    @Test
+    fun testParseMultiplePlainSubscriptionAndDeduplicatesEntries() {
+        val first = "vless://d342d110-d4a3-4513-bfa6-07a5e0f0ff37@one.example:443?security=tls&type=ws&path=%2Fws#One"
+        val second = "trojan://secret@two.example:443?sni=two.example#Two"
+        val result = ConfigParser.parseMultiple("$first\n$second\n$first")
+        assertEquals(2, result.profiles.size)
+        assertTrue(result.failures.isEmpty())
+        assertEquals("one.example", result.profiles[0].server)
+        assertEquals("two.example", result.profiles[1].server)
+    }
+
+    @Test
+    fun testParseMultipleBase64Subscription() {
+        val content = "vless://d342d110-d4a3-4513-bfa6-07a5e0f0ff37@one.example:443?security=tls&type=ws#One\n" +
+            "trojan://secret@two.example:443?sni=two.example#Two"
+        val encoded = android.util.Base64.encodeToString(content.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
+        val result = ConfigParser.parseMultiple(encoded)
+        assertEquals(2, result.profiles.size)
+        assertTrue(result.failures.isEmpty())
+    }
+
+    @Test
+    fun testParseMultipleKeepsValidEntriesWhenOneLineIsInvalid() {
+        val good = "vless://d342d110-d4a3-4513-bfa6-07a5e0f0ff37@one.example:443?security=tls#One"
+        val result = ConfigParser.parseMultiple("$good\nnot-a-config")
+        assertEquals(1, result.profiles.size)
+        assertEquals(1, result.failures.size)
+    }
+
 }

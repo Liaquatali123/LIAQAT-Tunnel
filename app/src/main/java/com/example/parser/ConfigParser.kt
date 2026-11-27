@@ -25,6 +25,9 @@ sealed class ParseResult {
 
 object ConfigParser {
 
+    data class BatchParseResult(val profiles: List<VpnProfile>, val failures: List<String>)
+
+
     fun parse(
         rawInput: String,
         unlockPassword: String = "",
@@ -56,6 +59,51 @@ object ConfigParser {
         } catch (e: Exception) {
             ParseResult.Failure("Failed to parse configuration: ${e.message}", e.stackTraceToString())
         }
+    }
+
+
+    fun parseMultiple(
+        rawInput: String,
+        unlockPassword: String = "",
+        context: Context? = null,
+        maxProfiles: Int = 100
+    ): BatchParseResult {
+        val raw = rawInput.trim()
+        if (raw.isEmpty()) return BatchParseResult(emptyList(), listOf("Empty configuration input"))
+        if (CtpConfigCrypto.isCtpContent(raw) || raw.startsWith("{")) {
+            return when (val result = parse(raw, unlockPassword, context)) {
+                is ParseResult.Success -> BatchParseResult(listOf(result.profile), emptyList())
+                is ParseResult.Failure -> BatchParseResult(emptyList(), listOf(result.reason))
+            }
+        }
+        val pattern = Regex("(?im)^\\s*(vmess|vless|trojan|ss|ssh)://")
+        val decoded = if (!pattern.containsMatchIn(raw)) tryDecodeBase64Utf8(raw) else null
+        val source = if (decoded != null && pattern.containsMatchIn(decoded)) decoded else raw
+        val lines = source.lineSequence().map { it.trim().removePrefix("\uFEFF") }
+            .filter { it.isNotEmpty() && !it.startsWith("#") && !it.startsWith("//") }.toList()
+        if (lines.size <= 1) {
+            return when (val result = parse(lines.firstOrNull() ?: source, unlockPassword, context)) {
+                is ParseResult.Success -> BatchParseResult(listOf(result.profile), emptyList())
+                is ParseResult.Failure -> BatchParseResult(emptyList(), listOf(result.reason))
+            }
+        }
+        val limit = maxProfiles.coerceIn(1, 500)
+        val profiles = mutableListOf<VpnProfile>()
+        val failures = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+        lines.take(limit).forEachIndexed { index, line ->
+            when (val result = parse(line, unlockPassword, context)) {
+                is ParseResult.Success -> {
+                    val profile = result.profile
+                    val key = listOf(profile.protocol.name, profile.server.lowercase(), profile.port.toString(),
+                        profile.password, profile.network, profile.path).joinToString("|")
+                    if (seen.add(key)) profiles.add(profile)
+                }
+                is ParseResult.Failure -> failures.add("Line ${index + 1}: ${result.reason}")
+            }
+        }
+        if (lines.size > limit) failures.add("Only the first $limit entries were checked (subscription limit)")
+        return BatchParseResult(profiles, failures)
     }
 
     private fun parseCtp(

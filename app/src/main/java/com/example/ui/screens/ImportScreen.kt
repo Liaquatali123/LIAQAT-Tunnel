@@ -53,7 +53,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.model.VpnProfile
 import com.example.parser.ConfigParser
-import com.example.parser.ParseResult
 import com.example.security.CtpConfigCrypto
 import com.example.security.DeviceSecurityManager
 import com.example.ui.components.GlassCard
@@ -74,29 +73,23 @@ fun ImportScreen(
     var requiresPassword by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
     var isSuccess by remember { mutableStateOf(false) }
-    var parsedProfile by remember { mutableStateOf<VpnProfile?>(null) }
+    var parsedProfiles by remember { mutableStateOf<List<VpnProfile>>(emptyList()) }
 
     val deviceHwid = remember { DeviceSecurityManager.getHardwareId(context) }
 
     fun validateAndParse(text: String, password: String = unlockPassword) {
-        val result = ConfigParser.parse(text, password, context)
-        when (result) {
-            is ParseResult.Success -> {
-                isSuccess = true
-                requiresPassword = false
-                parsedProfile = result.profile
-                statusMessage = if (result.profile.isLocked) {
-                    "Valid encrypted .ctp configuration (Locked)"
-                } else {
-                    "Valid ${result.profile.protocol.displayName} configuration"
-                }
-            }
-            is ParseResult.Failure -> {
-                isSuccess = false
-                parsedProfile = null
-                requiresPassword = result.requiresPassword || CtpConfigCrypto.isCtpContent(text)
-                statusMessage = result.reason
-            }
+        val result = ConfigParser.parseMultiple(text, password, context)
+        parsedProfiles = result.profiles
+        isSuccess = result.profiles.isNotEmpty()
+        requiresPassword = result.profiles.isEmpty() &&
+            (CtpConfigCrypto.isCtpContent(text) || result.failures.any { it.contains("password", ignoreCase = true) })
+        statusMessage = when {
+            result.profiles.isNotEmpty() && result.failures.isNotEmpty() ->
+                "Found ${result.profiles.size} profile(s); skipped ${result.failures.size} invalid/duplicate entry(s)"
+            result.profiles.size > 1 -> "Valid subscription: ${result.profiles.size} profiles ready to import"
+            result.profiles.size == 1 && result.profiles.first().isLocked -> "Valid encrypted .ctp configuration (Locked)"
+            result.profiles.size == 1 -> "Valid ${result.profiles.first().protocol.displayName} configuration"
+            else -> result.failures.firstOrNull() ?: "No supported profiles found"
         }
     }
 
@@ -241,7 +234,7 @@ fun ImportScreen(
                     validateAndParse(it, unlockPassword)
                 } else {
                     statusMessage = null
-                    parsedProfile = null
+                    parsedProfiles = emptyList()
                 }
             },
             label = { Text("Configuration (.ctp, URI, or JSON)") },
@@ -287,9 +280,14 @@ fun ImportScreen(
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis
                         )
-                        if (parsedProfile != null) {
+                        if (parsedProfiles.isNotEmpty()) {
                             Text(
-                                text = "Endpoint: ${parsedProfile?.maskedEndpoint} (${parsedProfile?.protocol?.displayName})",
+                                text = if (parsedProfiles.size == 1) {
+                                    "Endpoint: ${parsedProfiles.first().maskedEndpoint} (${parsedProfiles.first().protocol.displayName})"
+                                } else {
+                                    "Ready: ${parsedProfiles.size} profiles — " + parsedProfiles.groupingBy { it.protocol.displayName }.eachCount()
+                                        .entries.joinToString(", ") { "${it.key}: ${it.value}" }
+                                },
                                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
                                 color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,
@@ -341,13 +339,11 @@ fun ImportScreen(
         // Save Button
         Button(
             onClick = {
-                parsedProfile?.let { profile ->
-                    viewModel.saveProfile(profile)
-                    viewModel.selectProfile(profile)
-                    onImportSuccess()
-                }
+                parsedProfiles.forEach { viewModel.saveProfile(it) }
+                parsedProfiles.firstOrNull()?.let { viewModel.selectProfile(it) }
+                if (parsedProfiles.isNotEmpty()) onImportSuccess()
             },
-            enabled = isSuccess && parsedProfile != null,
+            enabled = isSuccess && parsedProfiles.isNotEmpty(),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp)
@@ -360,7 +356,10 @@ fun ImportScreen(
         ) {
             Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Save Profile", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+            Text(
+                if (parsedProfiles.size > 1) "Import ${parsedProfiles.size} Profiles" else "Save Profile",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
         }
     }
 }
