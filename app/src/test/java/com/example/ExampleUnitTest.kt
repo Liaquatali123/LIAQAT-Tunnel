@@ -1389,4 +1389,12 @@ class ExampleUnitTest {
         assertEquals("secret", user.getString("pass"))
     }
 
+    @Test
+    fun testSingBoxLegacyHttp2TransportIsRejectedByCurrentCoreProfile() {
+        val json = "{\"outbounds\":[{\"type\":\"vless\",\"server\":\"edge.example.net\",\"server_port\":443,\"uuid\":\"d342d110-d4a3-4513-bfa6-07a5e0f0ff37\",\"transport\":{\"type\":\"http\"}}]}"
+        val result = ConfigParser.parse(json)
+        assertTrue(result is ParseResult.Failure)
+        assertTrue((result as ParseResult.Failure).reason.contains("transport"))
+    }
+
 }

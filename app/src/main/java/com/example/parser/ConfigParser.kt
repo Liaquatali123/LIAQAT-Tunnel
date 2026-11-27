@@ -888,7 +888,7 @@ object ConfigParser {
             "tcp", "http2", "h2" -> if (rawTransport == "http2" || rawTransport == "h2") "h2" else "tcp"
             else -> rawTransport
         }
-        val supportedTransports = setOf("tcp", "ws", "grpc", "httpupgrade", "h2", "xhttp", "kcp")
+        val supportedTransports = setOf("tcp", "ws", "grpc", "httpupgrade", "xhttp", "kcp")
         if (network !in supportedTransports) {
             return ParseResult.Failure("Unsupported sing-box transport '$rawTransport'")
         }

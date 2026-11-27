@@ -323,7 +323,7 @@ class XrayEngineAdapter : VpnEngineAdapter {
                     throw IllegalArgumentException("VLESS REALITY configuration requires a non-empty publicKey ('pbk')")
                 }
                 val net = profile.network.trim().lowercase().ifEmpty { "tcp" }
-                val supportedNets = setOf("tcp", "ws", "websocket", "grpc", "gun", "httpupgrade", "xhttp", "splithttp", "h2", "http", "kcp")
+                val supportedNets = setOf("tcp", "ws", "websocket", "grpc", "gun", "httpupgrade", "xhttp", "splithttp", "kcp")
                 if (net !in supportedNets) {
                     throw IllegalArgumentException("Unsupported VLESS transport network '$net'")
                 }
