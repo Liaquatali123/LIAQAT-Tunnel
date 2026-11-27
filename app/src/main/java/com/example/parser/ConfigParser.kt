@@ -639,6 +639,12 @@ object ConfigParser {
             )
         }
 
+        // sing-box JSON uses "type"/"server" fields rather than Xray's
+        // "protocol"/"settings" schema. Convert supported outbound types into
+        // the app's canonical profile model without silently changing credentials.
+        val singBoxResult = parseSingBoxJson(root)
+        if (singBoxResult != null) return singBoxResult
+
         // Standard Xray/V2Ray inbound/outbound JSON
         val outbounds = root.optJSONArray("outbounds")
         if (outbounds != null && outbounds.length() > 0) {
@@ -769,6 +775,116 @@ object ConfigParser {
         }
 
         return ParseResult.Failure("JSON does not contain recognized Xray outbounds or Custom Tunnel Pro profile schema")
+    }
+
+
+    private fun parseSingBoxJson(root: JSONObject): ParseResult? {
+        val outbounds = root.optJSONArray("outbounds") ?: return null
+        if (outbounds.length() == 0) return null
+
+        val supported = setOf("vless", "vmess", "trojan", "shadowsocks", "socks", "socks5", "http")
+        var outbound: JSONObject? = null
+        var type = ""
+        for (i in 0 until outbounds.length()) {
+            val candidate = outbounds.optJSONObject(i) ?: continue
+            val candidateType = candidate.optString("type", "").trim().lowercase()
+            if (candidateType in supported) {
+                outbound = candidate
+                type = candidateType
+                break
+            }
+        }
+        val item = outbound ?: return null
+
+        val server = item.optString("server", "").trim()
+        val port = item.optInt("server_port", item.optInt("port", 0))
+        if (server.isBlank() || port !in 1..65535) {
+            return ParseResult.Failure("Invalid sing-box outbound: server or server_port is missing")
+        }
+
+        val tls = item.optJSONObject("tls")
+        val tlsEnabled = tls?.optBoolean("enabled", false) == true
+        val reality = tls?.optJSONObject("reality")
+        val security = when {
+            reality?.optBoolean("enabled", false) == true -> "reality"
+            tlsEnabled -> "tls"
+            else -> "none"
+        }
+        val utls = tls?.optJSONObject("utls")
+        val fingerprint = utls?.optString("fingerprint", "chrome")?.ifBlank { "chrome" } ?: "chrome"
+        val sni = tls?.optString("server_name", "")?.trim().orEmpty()
+        val allowInsecure = tls?.optBoolean("insecure", false) == true
+        val transport = item.optJSONObject("transport")
+        val rawTransport = transport?.optString("type", "tcp")?.trim()?.lowercase() ?: "tcp"
+        val network = when (rawTransport) {
+            "ws", "websocket" -> "ws"
+            "grpc" -> "grpc"
+            "httpupgrade" -> "httpupgrade"
+            "http" -> "h2"
+            "tcp", "http2", "h2" -> if (rawTransport == "http2" || rawTransport == "h2") "h2" else "tcp"
+            else -> rawTransport
+        }
+        val headers = transport?.optJSONObject("headers")
+        val wsHost = headers?.optString("Host", "")?.trim()
+            ?: transport?.optString("host", "")?.trim().orEmpty()
+        val path = when (network) {
+            "grpc" -> transport?.optString("service_name", "")?.trim().orEmpty()
+            else -> transport?.optString("path", "")?.trim().orEmpty()
+        }
+        val name = item.optString("tag", "").trim().ifBlank {
+            root.optString("remarks", "").trim().ifBlank { "sing-box-" + server + ":" + port }
+        }
+
+        val protocol = when (type) {
+            "vless" -> ProtocolType.VLESS
+            "vmess" -> ProtocolType.VMESS
+            "trojan" -> ProtocolType.TROJAN
+            "shadowsocks" -> ProtocolType.SHADOWSOCKS
+            "socks", "socks5", "http" -> ProtocolType.SOCKS5
+            else -> return null
+        }
+        val credential = when (protocol) {
+            ProtocolType.VLESS, ProtocolType.VMESS -> item.optString("uuid", "").trim()
+            ProtocolType.TROJAN -> item.optString("password", "").trim()
+            ProtocolType.SHADOWSOCKS -> {
+                val method = item.optString("method", "").trim()
+                val password = item.optString("password", "").trim()
+                if (method.isNotBlank() && password.isNotBlank()) "$method:$password" else password
+            }
+            ProtocolType.SOCKS5 -> item.optString("password", "").trim()
+            else -> ""
+        }
+        if (protocol != ProtocolType.SOCKS5 && credential.isBlank()) {
+            return ParseResult.Failure("sing-box " + type + " outbound is missing its required credential")
+        }
+
+        val profile = VpnProfile(
+            id = UUID.randomUUID().toString(),
+            name = name,
+            protocol = protocol,
+            server = server,
+            port = port,
+            password = credential,
+            security = security,
+            network = network,
+            path = path,
+            sni = sni,
+            wsHost = wsHost,
+            fingerprint = fingerprint,
+            alpn = tls?.optJSONArray("alpn")?.let { arr ->
+                (0 until arr.length()).map { arr.optString(it) }.filter { it.isNotBlank() }.joinToString(",")
+            }.orEmpty(),
+            flow = item.optString("flow", ""),
+            encryption = if (protocol == ProtocolType.VMESS) item.optString("security", "auto") else "none",
+            publicKey = reality?.optString("public_key", "")?.trim().orEmpty(),
+            shortId = reality?.optString("short_id", "")?.trim().orEmpty(),
+            spiderX = reality?.optString("spider_x", "")?.trim().orEmpty(),
+            allowInsecureSsl = allowInsecure
+        )
+        if (profile.security == "reality" && profile.publicKey.isBlank()) {
+            return ParseResult.Failure("sing-box REALITY outbound is missing tls.reality.public_key")
+        }
+        return ParseResult.Success(profile)
     }
 
     private fun decodeUrlComponent(encoded: String): String {
