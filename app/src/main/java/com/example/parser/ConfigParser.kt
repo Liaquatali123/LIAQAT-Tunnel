@@ -745,7 +745,9 @@ object ConfigParser {
                         socksUsername = user.optString("user", "")
                         id = user.optString("pass", "")
                     } else {
-                        id = serverEntry.optString("password", "")
+                        val rawPassword = serverEntry.optString("password", "")
+                        val method = serverEntry.optString("method", "")
+                        id = if (proto == ProtocolType.SHADOWSOCKS && method.isNotBlank()) "$method:$rawPassword" else rawPassword
                     }
                 }
             }

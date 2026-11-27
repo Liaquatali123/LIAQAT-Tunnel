@@ -1397,4 +1397,14 @@ class ExampleUnitTest {
         assertTrue((result as ParseResult.Failure).reason.contains("transport"))
     }
 
+    @Test
+    fun testXrayShadowsocksOutboundPreservesMethodAndPassword() {
+        val json = "{\"outbounds\":[{\"protocol\":\"shadowsocks\",\"settings\":{\"servers\":[{\"address\":\"ss.example.net\",\"port\":8388,\"method\":\"chacha20-ietf-poly1305\",\"password\":\"secret\"}]}}]}"
+        val result = ConfigParser.parse(json)
+        assertTrue(result is ParseResult.Success)
+        val profile = (result as ParseResult.Success).profile
+        assertEquals(ProtocolType.SHADOWSOCKS, profile.protocol)
+        assertEquals("chacha20-ietf-poly1305:secret", profile.password)
+    }
+
 }
