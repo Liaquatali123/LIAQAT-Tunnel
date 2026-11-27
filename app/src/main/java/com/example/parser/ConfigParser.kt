@@ -635,6 +635,7 @@ object ConfigParser {
                     server = root.getString("server"),
                     port = root.getInt("port"),
                     password = root.optString("password", ""),
+                    socksUsername = root.optString("socksUsername", ""),
                     security = root.optString("security", "none"),
                     network = root.optString("network", "tcp"),
                     path = root.optString("path", ""),
@@ -712,6 +713,7 @@ object ConfigParser {
             var id = ""
             var flow = ""
             var encryption = "none"
+            var socksUsername = ""
             if (settings != null) {
                 val vnext = settings.optJSONArray("vnext")
                 if (vnext != null && vnext.length() > 0) {
@@ -732,6 +734,19 @@ object ConfigParser {
                     id = settings.optString("id", "")
                     flow = settings.optString("flow", "")
                     encryption = settings.optString("encryption", "none")
+                }
+ else if (settings.optJSONArray("servers") != null && settings.getJSONArray("servers").length() > 0) {
+                    val serverEntry = settings.getJSONArray("servers").getJSONObject(0)
+                    server = serverEntry.optString("address", "")
+                    port = serverEntry.optInt("port", 1080)
+                    val users = serverEntry.optJSONArray("users")
+                    if (users != null && users.length() > 0) {
+                        val user = users.getJSONObject(0)
+                        socksUsername = user.optString("user", "")
+                        id = user.optString("pass", "")
+                    } else {
+                        id = serverEntry.optString("password", "")
+                    }
                 }
             }
             if (server.isEmpty()) return ParseResult.Failure("Cannot parse outbound server address from Xray JSON")
@@ -803,6 +818,7 @@ object ConfigParser {
                     server = server,
                     port = port,
                     password = id,
+                    socksUsername = socksUsername,
                     security = security,
                     network = network,
                     path = path,
@@ -830,7 +846,7 @@ object ConfigParser {
         val outbounds = root.optJSONArray("outbounds") ?: return null
         if (outbounds.length() == 0) return null
 
-        val supported = setOf("vless", "vmess", "trojan", "shadowsocks", "socks", "socks5", "http")
+        val supported = setOf("vless", "vmess", "trojan", "shadowsocks", "socks", "socks5")
         var outbound: JSONObject? = null
         var type = ""
         for (i in 0 until outbounds.length()) {
@@ -896,7 +912,7 @@ object ConfigParser {
             "vmess" -> ProtocolType.VMESS
             "trojan" -> ProtocolType.TROJAN
             "shadowsocks" -> ProtocolType.SHADOWSOCKS
-            "socks", "socks5", "http" -> ProtocolType.SOCKS5
+            "socks", "socks5" -> ProtocolType.SOCKS5
             else -> return null
         }
         val credential = when (protocol) {
@@ -910,6 +926,7 @@ object ConfigParser {
             ProtocolType.SOCKS5 -> item.optString("password", "").trim()
             else -> ""
         }
+        val socksUsername = if (protocol == ProtocolType.SOCKS5) item.optString("username", "").trim() else ""
         if (protocol != ProtocolType.SOCKS5 && credential.isBlank()) {
             return ParseResult.Failure("sing-box " + type + " outbound is missing its required credential")
         }
@@ -921,6 +938,7 @@ object ConfigParser {
             server = server,
             port = port,
             password = credential,
+            socksUsername = socksUsername,
             security = security,
             network = network,
             path = path,
@@ -1031,6 +1049,7 @@ object ConfigParser {
             put("server", profile.server)
             put("port", profile.port)
             put("password", profile.password)
+            put("socksUsername", profile.socksUsername)
             put("security", profile.security)
             put("network", profile.network)
             put("path", profile.path)

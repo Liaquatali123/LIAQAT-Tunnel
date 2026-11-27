@@ -573,6 +573,22 @@ class XrayEngineAdapter : VpnEngineAdapter {
                         put("servers", servers)
                     })
                 }
+                ProtocolType.SOCKS5 -> {
+                    put("protocol", "socks")
+                    put("settings", JSONObject().apply {
+                        val server = JSONObject().apply {
+                            put("address", profile.server.trim())
+                            put("port", profile.port)
+                            if (profile.socksUsername.isNotBlank()) {
+                                put("users", JSONArray().put(JSONObject().apply {
+                                    put("user", profile.socksUsername)
+                                    put("pass", profile.password)
+                                }))
+                            }
+                        }
+                        put("servers", JSONArray().put(server))
+                    })
+                }
                 ProtocolType.SHADOWSOCKS -> {
                     put("protocol", "shadowsocks")
                     put("settings", JSONObject().apply {

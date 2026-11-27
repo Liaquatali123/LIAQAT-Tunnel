@@ -1369,4 +1369,24 @@ class ExampleUnitTest {
         assertEquals(1, result.failures.size)
     }
 
+    @Test
+    fun testSingBoxSocks5AuthCredentialsPreserved() {
+        val json = "{\"outbounds\":[{\"type\":\"socks\",\"tag\":\"Auth\",\"server\":\"proxy.example.net\",\"server_port\":1080,\"username\":\"alice\",\"password\":\"secret\"}]}"
+        val result = ConfigParser.parse(json)
+        assertTrue(result is ParseResult.Success)
+        val profile = (result as ParseResult.Success).profile
+        assertEquals("alice", profile.socksUsername)
+        assertEquals("secret", profile.password)
+    }
+
+    @Test
+    fun testXraySocks5OutboundIncludesAuthCredentials() {
+        val profile = VpnProfile(id = "auth", name = "Auth", protocol = ProtocolType.SOCKS5, server = "proxy.example.net", port = 1080, socksUsername = "alice", password = "secret")
+        val config = JSONObject(XrayEngineAdapter().buildXrayConfig(profile, 10808))
+        val server = config.getJSONArray("outbounds").getJSONObject(0).getJSONObject("settings").getJSONArray("servers").getJSONObject(0)
+        val user = server.getJSONArray("users").getJSONObject(0)
+        assertEquals("alice", user.getString("user"))
+        assertEquals("secret", user.getString("pass"))
+    }
+
 }
