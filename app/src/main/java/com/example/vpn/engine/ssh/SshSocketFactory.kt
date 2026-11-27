@@ -130,9 +130,15 @@ class SshSocketFactory(
             }
 
             SshTunnelMode.WEBSOCKET -> {
-                val connectHost = if (profile.proxyHost.isNotBlank() && profile.proxyPort > 0) profile.proxyHost else host
-                val connectPort = if (profile.proxyHost.isNotBlank() && profile.proxyPort > 0) profile.proxyPort else port
-                rawSocket.connect(InetSocketAddress(connectHost, connectPort), timeoutMs)
+                if (profile.proxyHost.isNotBlank() && profile.proxyPort > 0) {
+                    SshProxyHandler.connectHttpProxy(
+                        socket = rawSocket, proxyHost = profile.proxyHost, proxyPort = profile.proxyPort,
+                        targetHost = host, targetPort = port, proxyUser = profile.sshProxyUser,
+                        proxyPass = profile.sshProxyPass, customHeaders = profile.sshCustomHeaders, timeoutMs = timeoutMs
+                    )
+                } else {
+                    rawSocket.connect(InetSocketAddress(host, port), timeoutMs)
+                }
                 try { vpnService.protect(rawSocket) } catch (ignored: Exception) {}
 
                 SshWebSocketHandler.upgradeWebSocket(
@@ -145,9 +151,15 @@ class SshSocketFactory(
             }
 
             SshTunnelMode.SECURE_WEBSOCKET, SshTunnelMode.SSL_WEBSOCKET -> {
-                val connectHost = if (profile.proxyHost.isNotBlank() && profile.proxyPort > 0) profile.proxyHost else host
-                val connectPort = if (profile.proxyHost.isNotBlank() && profile.proxyPort > 0) profile.proxyPort else port
-                rawSocket.connect(InetSocketAddress(connectHost, connectPort), timeoutMs)
+                if (profile.proxyHost.isNotBlank() && profile.proxyPort > 0) {
+                    SshProxyHandler.connectHttpProxy(
+                        socket = rawSocket, proxyHost = profile.proxyHost, proxyPort = profile.proxyPort,
+                        targetHost = host, targetPort = port, proxyUser = profile.sshProxyUser,
+                        proxyPass = profile.sshProxyPass, customHeaders = profile.sshCustomHeaders, timeoutMs = timeoutMs
+                    )
+                } else {
+                    rawSocket.connect(InetSocketAddress(host, port), timeoutMs)
+                }
                 try { vpnService.protect(rawSocket) } catch (ignored: Exception) {}
 
                 val tlsSocket = SshTlsHandler.wrapTls(
