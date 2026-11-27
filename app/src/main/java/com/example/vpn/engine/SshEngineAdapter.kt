@@ -263,8 +263,10 @@ class SshEngineAdapter : VpnEngineAdapter {
 
             startSocksServer(sSocket)
 
-            // 6. Attach HEV SOCKS5 tunnel forwarder to our local SOCKS5 router with mapdns enabled
-            // so UDP port-53 DNS requests are mapped in 0.05ms to SOCKS5 domain-name direct-tcpip channels
+            // 6. Attach HEV to the local SSH SOCKS5 bridge.
+            // mapdns handles DNS separately, but udp=tcp requires the HEV SOCKS5
+            // server's extended FWD-UDP command. This bridge currently implements
+            // CONNECT only, so general UDP applications are not supported here.
             val primaryDns = effectiveProfile.dnsPrimary.ifBlank { "1.1.1.1" }
             val hevStarted = HevTunnelManager.start(
                 context = vpnService,
@@ -290,7 +292,7 @@ class SshEngineAdapter : VpnEngineAdapter {
             )
             lastConnectivityResult = verifySshOutboundForwarding(session, effectiveProfile)
 
-            AppLogger.i(TAG, "SSH Tunnel Engine and HEV forwarder running [${profile.sshMode.displayName}]")
+            AppLogger.i(TAG, "SSH Tunnel Engine and HEV forwarder running [${profile.sshMode.displayName}]; TCP forwarding enabled, DNS mapdns enabled, general UDP relay unavailable in the current SOCKS5 bridge")
             true
         } catch (e: Throwable) {
             val userFriendlyMsg = when {
@@ -363,7 +365,7 @@ class SshEngineAdapter : VpnEngineAdapter {
                 rttMs = rtt,
                 endpoint = "$dnsProbeHost:53",
                 failureCategory = ProbeFailureCategory.BLOCKED_PROBE,
-                diagnosticMessage = "SSH Outbound TCP Reachable (${rtt} ms) — Full Internet/TUN traffic not verified"
+                diagnosticMessage = "SSH TCP forwarding reachable (${rtt} ms). Full Internet is unverified; DNS mapdns is enabled, but general UDP traffic is unsupported by the current SSH SOCKS5 bridge."
             )
         } catch (e: Exception) {
             val errMsg = e.message ?: "SSH direct-tcpip channel failed"
@@ -376,7 +378,7 @@ class SshEngineAdapter : VpnEngineAdapter {
                 rttMs = null,
                 endpoint = "$dnsProbeHost:53",
                 failureCategory = ProbeFailureCategory.BLOCKED_PROBE,
-                diagnosticMessage = "Tunnel Connected — Internet Unverified (SSH forward probe: $errMsg)"
+                diagnosticMessage = "SSH tunnel connected, but TCP forwarding is unverified ($errMsg). General UDP traffic is unsupported by the current SSH SOCKS5 bridge."
             )
         }
     }

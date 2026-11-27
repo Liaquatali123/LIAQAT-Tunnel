@@ -9,6 +9,7 @@ import com.example.parser.ParseResult
 import com.example.vpn.engine.PayloadInjector
 import com.example.vpn.engine.ssh.SshProxyHandler
 import com.example.vpn.engine.XrayEngineAdapter
+import com.example.vpn.engine.HevTunnelManager
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
@@ -1493,4 +1494,21 @@ class ExampleUnitTest {
         adapter.validateProfile(base.copy(id = "vmess-xhttp", network = "splithttp"))
     }
 
+
+    @Test
+    fun testHevSshUdpModeIsExplicitAndConfigSectionsAreSiblings() {
+        val config = HevTunnelManager.buildConfigYaml(
+            socksAddress = "127.0.0.1",
+            socksPort = 10809,
+            udpMode = "tcp",
+            mapDnsAddress = "1.1.1.1",
+            enableIpv6 = false
+        )
+        assertTrue(config.contains("socks5:\\n  port: 10809"))
+        assertTrue(config.contains("  udp: 'tcp'"))
+        assertTrue(config.contains("mapdns:\\n  address: 1.1.1.1"))
+        assertTrue(config.contains("misc:\\n"))
+        assertFalse(config.contains("  mapdns:"))
+        assertFalse(config.contains("  misc:"))
+    }
 }
