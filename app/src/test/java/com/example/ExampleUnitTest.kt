@@ -1259,4 +1259,84 @@ class ExampleUnitTest {
         assertEquals(totalWaves, closedServerSockets.get())
         assertTrue("Late-wave throughput must remain fast (>10 MB/s)", lateMBps > 10.0)
     }
+
+    @Test
+    fun testSingBoxVlessRealityWebSocketImport() {
+        val json = """{
+            "outbounds": [{
+                "type": "vless",
+                "tag": "Reality WS",
+                "server": "edge.example.net",
+                "server_port": 443,
+                "uuid": "d342d110-d4a3-4513-bfa6-07a5e0f0ff37",
+                "flow": "xtls-rprx-vision",
+                "tls": {
+                    "enabled": true,
+                    "server_name": "cdn.example.net",
+                    "utls": {"enabled": true, "fingerprint": "chrome"},
+                    "reality": {
+                        "enabled": true,
+                        "public_key": "public-key",
+                        "short_id": "abcd",
+                        "spider_x": "/"
+                    }
+                },
+                "transport": {
+                    "type": "ws",
+                    "path": "/tunnel",
+                    "headers": {"Host": "ws.example.net"}
+                }
+            }]
+        }"""
+        val result = ConfigParser.parse(json)
+        assertTrue(result is ParseResult.Success)
+        val profile = (result as ParseResult.Success).profile
+        assertEquals(ProtocolType.VLESS, profile.protocol)
+        assertEquals("Reality WS", profile.name)
+        assertEquals("reality", profile.security)
+        assertEquals("ws", profile.network)
+        assertEquals("/tunnel", profile.path)
+        assertEquals("ws.example.net", profile.wsHost)
+        assertEquals("cdn.example.net", profile.sni)
+        assertEquals("public-key", profile.publicKey)
+        assertEquals("abcd", profile.shortId)
+        assertEquals("/", profile.spiderX)
+        assertEquals("xtls-rprx-vision", profile.flow)
+    }
+
+    @Test
+    fun testSingBoxShadowsocksMethodAndPasswordArePreserved() {
+        val json = """{
+            "outbounds": [{
+                "type": "shadowsocks",
+                "tag": "SS Node",
+                "server": "ss.example.net",
+                "server_port": 8388,
+                "method": "2022-blake3-aes-128-gcm",
+                "password": "secret-key"
+            }]
+        }"""
+        val result = ConfigParser.parse(json)
+        assertTrue(result is ParseResult.Success)
+        val profile = (result as ParseResult.Success).profile
+        assertEquals(ProtocolType.SHADOWSOCKS, profile.protocol)
+        assertEquals("2022-blake3-aes-128-gcm:secret-key", profile.password)
+    }
+
+    @Test
+    fun testSingBoxUnsupportedTransportFailsClearly() {
+        val json = """{
+            "outbounds": [{
+                "type": "vless",
+                "server": "edge.example.net",
+                "server_port": 443,
+                "uuid": "d342d110-d4a3-4513-bfa6-07a5e0f0ff37",
+                "transport": {"type": "quic"}
+            }]
+        }"""
+        val result = ConfigParser.parse(json)
+        assertTrue(result is ParseResult.Failure)
+        assertTrue((result as ParseResult.Failure).reason.contains("transport"))
+    }
+
 }

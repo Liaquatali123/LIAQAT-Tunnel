@@ -824,13 +824,21 @@ object ConfigParser {
             "tcp", "http2", "h2" -> if (rawTransport == "http2" || rawTransport == "h2") "h2" else "tcp"
             else -> rawTransport
         }
+        val supportedTransports = setOf("tcp", "ws", "grpc", "httpupgrade", "h2", "xhttp", "kcp")
+        if (network !in supportedTransports) {
+            return ParseResult.Failure("Unsupported sing-box transport '$rawTransport'")
+        }
         val headers = transport?.optJSONObject("headers")
-        val wsHost = headers?.optString("Host", "")?.trim()
-            ?: transport?.optString("host", "")?.trim().orEmpty()
+        val wsHost = (headers?.optString("Host", "")?.trim().orEmpty()
+            .ifBlank { headers?.optString("host", "")?.trim().orEmpty() })
+            .ifBlank { transport?.optString("host", "")?.trim().orEmpty() }
         val path = when (network) {
             "grpc" -> transport?.optString("service_name", "")?.trim().orEmpty()
             else -> transport?.optString("path", "")?.trim().orEmpty()
         }
+        val grpcAuthority = if (network == "grpc") {
+            transport?.optString("authority", "")?.trim().orEmpty()
+        } else ""
         val name = item.optString("tag", "").trim().ifBlank {
             root.optString("remarks", "").trim().ifBlank { "sing-box-" + server + ":" + port }
         }
@@ -870,6 +878,7 @@ object ConfigParser {
             path = path,
             sni = sni,
             wsHost = wsHost,
+            grpcAuthority = grpcAuthority,
             fingerprint = fingerprint,
             alpn = tls?.optJSONArray("alpn")?.let { arr ->
                 (0 until arr.length()).map { arr.optString(it) }.filter { it.isNotBlank() }.joinToString(",")
