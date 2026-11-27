@@ -1504,10 +1504,10 @@ class ExampleUnitTest {
             mapDnsAddress = "1.1.1.1",
             enableIpv6 = false
         )
-        assertTrue(config.contains("socks5:\\n  port: 10809"))
+        assertTrue(config.contains("socks5:\n  port: 10809"))
         assertTrue(config.contains("  udp: 'tcp'"))
-        assertTrue(config.contains("mapdns:\\n  address: 1.1.1.1"))
-        assertTrue(config.contains("misc:\\n"))
+        assertTrue(config.contains("mapdns:\n  address: 1.1.1.1"))
+        assertTrue(config.contains("misc:\n"))
         assertFalse(config.contains("  mapdns:"))
         assertFalse(config.contains("  misc:"))
     }
