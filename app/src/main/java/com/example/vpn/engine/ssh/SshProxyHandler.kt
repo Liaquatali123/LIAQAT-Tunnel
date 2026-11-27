@@ -94,19 +94,17 @@ object SshProxyHandler {
         val out = DataOutputStream(socket.getOutputStream())
         val inStream = DataInputStream(socket.getInputStream())
 
-        val isIp = try {
-            InetAddress.getByName(targetHost)
-            true
-        } catch (e: Exception) {
-            false
-        }
+        require(targetPort in 1..65535) { "Invalid SOCKS4 target port" }
+        // Only numeric IPv4 literals are resolved locally; hostnames use SOCKS4a to avoid DNS leaks.
+        val ipv4Literal = targetHost.matches(Regex("^\\\\d{1,3}(\\\\.\\\\d{1,3}){3}$"))
+        val literalAddress = if (ipv4Literal) runCatching { InetAddress.getByName(targetHost).address.takeIf { it.size == 4 } }.getOrNull() else null
 
         out.writeByte(0x04) // SOCKS version 4
         out.writeByte(0x01) // Command: CONNECT
         out.writeShort(targetPort)
 
-        if (isIp) {
-            val addr = InetAddress.getByName(targetHost).address
+        if (literalAddress != null) {
+            val addr = literalAddress
             out.write(addr)
             out.write(userId.toByteArray(Charsets.UTF_8))
             out.writeByte(0x00)
@@ -158,6 +156,13 @@ object SshProxyHandler {
         val out = DataOutputStream(socket.getOutputStream())
         val inStream = DataInputStream(socket.getInputStream())
 
+        require(targetPort in 1..65535) { "Invalid SOCKS5 target port" }
+        val hostBytes = targetHost.toByteArray(Charsets.UTF_8)
+        require(hostBytes.isNotEmpty() && hostBytes.size <= 255) { "SOCKS5 target hostname must be 1-255 UTF-8 bytes" }
+        val userBytes = username.toByteArray(Charsets.UTF_8)
+        val passBytes = password.toByteArray(Charsets.UTF_8)
+        require(userBytes.size <= 255 && passBytes.size <= 255) { "SOCKS5 credentials must not exceed 255 UTF-8 bytes" }
+
         // 1. Send version & auth methods
         if (username.isNotBlank()) {
             out.write(byteArrayOf(0x05, 0x02, 0x00, 0x02)) // NO_AUTH and USER/PASS
@@ -174,8 +179,6 @@ object SshProxyHandler {
 
         // 2. Perform Username/Password subnegotiation if requested
         if (authMethod == 0x02) {
-            val userBytes = username.toByteArray(Charsets.UTF_8)
-            val passBytes = password.toByteArray(Charsets.UTF_8)
             out.writeByte(0x01) // Subnegotiation version
             out.writeByte(userBytes.size)
             out.write(userBytes)
@@ -198,7 +201,6 @@ object SshProxyHandler {
         out.writeByte(0x00) // Reserved
 
         // Target address: Domain vs IP
-        val hostBytes = targetHost.toByteArray(Charsets.UTF_8)
         out.writeByte(0x03) // Domain name
         out.writeByte(hostBytes.size)
         out.write(hostBytes)
