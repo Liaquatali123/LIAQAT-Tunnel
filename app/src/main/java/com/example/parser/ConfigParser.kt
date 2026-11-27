@@ -95,8 +95,7 @@ object ConfigParser {
             when (val result = parse(line, unlockPassword, context)) {
                 is ParseResult.Success -> {
                     val profile = result.profile
-                    val key = listOf(profile.protocol.name, profile.server.lowercase(), profile.port.toString(),
-                        profile.password, profile.network, profile.path).joinToString("|")
+                    val key = duplicateKey(profile)
                     if (seen.add(key)) profiles.add(profile)
                 }
                 is ParseResult.Failure -> failures.add("Line ${index + 1}: ${result.reason}")
@@ -104,6 +103,67 @@ object ConfigParser {
         }
         if (lines.size > limit) failures.add("Only the first $limit entries were checked (subscription limit)")
         return BatchParseResult(profiles, failures)
+    }
+
+    /**
+     * Stable identity for imported connection profiles. Display names, generated IDs,
+     * timestamps and ping history are intentionally excluded. Every connection-affecting
+     * field is included so nodes that differ only by SNI, Host, REALITY keys, credentials,
+     * SSH transport/proxy settings or DNS/routing options are not accidentally collapsed.
+     */
+    private fun duplicateKey(profile: VpnProfile): String {
+        val fields = listOf(
+            profile.protocol.name,
+            profile.server.trim().trimEnd('.').lowercase(),
+            profile.port.toString(),
+            profile.password,
+            profile.socksUsername,
+            profile.security.lowercase(),
+            profile.network.lowercase(),
+            profile.path,
+            profile.sni.lowercase(),
+            profile.wsHost.lowercase(),
+            profile.headerType.lowercase(),
+            profile.grpcMode.lowercase(),
+            profile.grpcAuthority.lowercase(),
+            profile.publicKey,
+            profile.shortId.lowercase(),
+            profile.spiderX,
+            profile.fingerprint.lowercase(),
+            profile.alpn.lowercase(),
+            profile.flow,
+            profile.encryption.lowercase(),
+            profile.sshUsername,
+            profile.sshPayload,
+            profile.sshMode.name,
+            profile.proxyHost.trim().lowercase(),
+            profile.proxyPort.toString(),
+            profile.sshPrivateKey,
+            profile.sshPassphrase,
+            profile.sshProxyUser,
+            profile.sshProxyPass,
+            profile.sshSni.lowercase(),
+            profile.sshWsPath,
+            profile.sshCustomHeaders,
+            profile.sshChainProxyHost.trim().lowercase(),
+            profile.sshChainProxyPort.toString(),
+            profile.sshChainProxyType.uppercase(),
+            profile.sshLocalForwardPort.toString(),
+            profile.sshRemoteForwardHost.trim().lowercase(),
+            profile.sshRemoteForwardPort.toString(),
+            profile.sshRemoteListenPort.toString(),
+            profile.allowInsecureSsl.toString(),
+            profile.dnsPrimary.trim().lowercase(),
+            profile.dnsSecondary.trim().lowercase(),
+            profile.blockIpv6.toString(),
+            profile.perAppProxy.toString(),
+            profile.selectedApps.sorted().joinToString(",")
+        )
+        return buildString {
+            fields.forEach { value ->
+                append(value.length).append(':').append(value)
+            }
+        }
     }
 
     private fun parseCtp(

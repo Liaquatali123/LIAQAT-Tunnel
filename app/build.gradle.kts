@@ -69,7 +69,18 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+      all {
+        // Robolectric fetches android-all at runtime using its own HttpURLConnection
+        // resolver, independent of Gradle's repositories. Use Maven Central's canonical
+        // endpoint instead of repo1, which intermittently fails in GitHub-hosted runners.
+        it.systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+        it.systemProperty("robolectric.dependency.repo.id", "maven-central")
+      }
+    }
+  }
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
