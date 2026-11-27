@@ -11,6 +11,7 @@ import com.example.vpn.engine.ssh.SshProxyHandler
 import com.example.vpn.engine.XrayEngineAdapter
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
