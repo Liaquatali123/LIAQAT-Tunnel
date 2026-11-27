@@ -306,6 +306,33 @@ class XrayEngineAdapter : VpnEngineAdapter {
             throw IllegalArgumentException("Invalid server port: ${profile.port}")
         }
 
+        // Xray's current core no longer accepts the legacy HTTP/2 (h2/http) transport.
+        // Validate transport and stream security for every Xray outbound protocol before
+        // generating streamSettings; otherwise VMess/Trojan/Shadowsocks could reach core
+        // startup with a config that the VLESS-only validator had rejected.
+        if (profile.protocol in setOf(ProtocolType.VLESS, ProtocolType.VMESS, ProtocolType.TROJAN, ProtocolType.SHADOWSOCKS)) {
+            val network = profile.network.trim().lowercase().ifEmpty { "tcp" }
+            val normalizedNetwork = when (network) {
+                "websocket" -> "ws"
+                "gun" -> "grpc"
+                "splithttp" -> "xhttp"
+                else -> network
+            }
+            val supportedNetworks = setOf("tcp", "ws", "grpc", "httpupgrade", "xhttp", "kcp")
+            if (normalizedNetwork !in supportedNetworks) {
+                throw IllegalArgumentException(
+                    "Unsupported ${profile.protocol.displayName} transport '${profile.network}'. Supported: tcp, ws, grpc, httpupgrade, xhttp, kcp"
+                )
+            }
+            val security = profile.security.trim().lowercase().ifEmpty { "none" }
+            if (security !in setOf("none", "tls", "reality")) {
+                throw IllegalArgumentException("Unsupported ${profile.protocol.displayName} stream security '$security'")
+            }
+            if (security == "reality" && profile.protocol != ProtocolType.VLESS) {
+                throw IllegalArgumentException("REALITY security is supported only for VLESS profiles")
+            }
+        }
+
         when (profile.protocol) {
             ProtocolType.VLESS -> {
                 if (profile.password.isBlank()) {
@@ -322,11 +349,7 @@ class XrayEngineAdapter : VpnEngineAdapter {
                 if (sec == "reality" && profile.publicKey.isBlank()) {
                     throw IllegalArgumentException("VLESS REALITY configuration requires a non-empty publicKey ('pbk')")
                 }
-                val net = profile.network.trim().lowercase().ifEmpty { "tcp" }
-                val supportedNets = setOf("tcp", "ws", "websocket", "grpc", "gun", "httpupgrade", "xhttp", "splithttp", "kcp")
-                if (net !in supportedNets) {
-                    throw IllegalArgumentException("Unsupported VLESS transport network '$net'")
-                }
+                // Generic validation above normalizes aliases and checks the current core allowlist.
                 val flow = profile.flow.trim()
                 if (flow.isNotEmpty() && !flow.equals("xtls-rprx-vision", ignoreCase = true) && !flow.equals("xtls-rprx-vision-udp443", ignoreCase = true)) {
                     throw IllegalArgumentException("Unsupported VLESS flow '$flow' (only xtls-rprx-vision is supported)")
