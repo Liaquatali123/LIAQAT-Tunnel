@@ -734,8 +734,7 @@ object ConfigParser {
                     id = settings.optString("id", "")
                     flow = settings.optString("flow", "")
                     encryption = settings.optString("encryption", "none")
-                }
- else if (settings.optJSONArray("servers") != null && settings.getJSONArray("servers").length() > 0) {
+                } else if (settings.optJSONArray("servers") != null && settings.getJSONArray("servers").length() > 0) {
                     val serverEntry = settings.getJSONArray("servers").getJSONObject(0)
                     server = serverEntry.optString("address", "")
                     port = serverEntry.optInt("port", 1080)
