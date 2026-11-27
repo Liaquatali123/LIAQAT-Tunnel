@@ -1417,4 +1417,59 @@ class ExampleUnitTest {
         assertFalse(SshProxyHandler.isIpv4Literal("2001:db8::1"))
     }
 
+    @Test
+    fun testXrayRejectsLegacyHttp2ForEverySupportedProxyProtocol() {
+        val adapter = XrayEngineAdapter()
+        val profiles = listOf(
+            VpnProfile(id = "vmess-h2", name = "VMess H2", protocol = ProtocolType.VMESS, server = "node.example", port = 443, password = "uuid", network = "h2"),
+            VpnProfile(id = "trojan-h2", name = "Trojan H2", protocol = ProtocolType.TROJAN, server = "node.example", port = 443, password = "secret", network = "http"),
+            VpnProfile(id = "ss-h2", name = "SS H2", protocol = ProtocolType.SHADOWSOCKS, server = "node.example", port = 443, password = "aes-256-gcm:secret", network = "h2")
+        )
+        profiles.forEach { profile ->
+            try {
+                adapter.validateProfile(profile)
+                fail("Expected legacy HTTP/2 transport to be rejected for ${profile.protocol}")
+            } catch (e: IllegalArgumentException) {
+                assertTrue(e.message.orEmpty().contains("transport", ignoreCase = true))
+            }
+        }
+    }
+
+    @Test
+    fun testXrayRejectsRealityForNonVlessProtocols() {
+        val adapter = XrayEngineAdapter()
+        val profile = VpnProfile(
+            id = "trojan-reality",
+            name = "Trojan REALITY",
+            protocol = ProtocolType.TROJAN,
+            server = "node.example",
+            port = 443,
+            password = "secret",
+            security = "reality"
+        )
+        try {
+            adapter.validateProfile(profile)
+            fail("Expected REALITY to be rejected for Trojan")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message.orEmpty().contains("only for VLESS"))
+        }
+    }
+
+    @Test
+    fun testXrayAcceptsCurrentTransportAliases() {
+        val adapter = XrayEngineAdapter()
+        val base = VpnProfile(
+            id = "vmess-ws",
+            name = "VMess WS",
+            protocol = ProtocolType.VMESS,
+            server = "node.example",
+            port = 443,
+            password = "uuid",
+            network = "websocket"
+        )
+        adapter.validateProfile(base)
+        adapter.validateProfile(base.copy(id = "vmess-grpc", network = "gun"))
+        adapter.validateProfile(base.copy(id = "vmess-xhttp", network = "splithttp"))
+    }
+
 }
