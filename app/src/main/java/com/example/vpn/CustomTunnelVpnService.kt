@@ -40,6 +40,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.net.InetAddress
 import java.util.concurrent.atomic.AtomicLong
 
 class CustomTunnelVpnService : VpnService() {
@@ -341,8 +342,11 @@ class CustomTunnelVpnService : VpnService() {
         // full-tunnel route and log the limitation instead of pretending LAN bypass worked.
         if (profile.bypassLan) {
             if (Build.VERSION.SDK_INT >= 33) {
-                listOf("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "fc00::/7", "fe80::/10").forEach { cidr ->
-                    builder.excludeRoute(IpPrefix(cidr))
+                listOf(
+                    "10.0.0.0" to 8, "172.16.0.0" to 12, "192.168.0.0" to 16, "169.254.0.0" to 16,
+                    "fc00::" to 7, "fe80::" to 10
+                ).forEach { (address, prefixLength) ->
+                    builder.excludeRoute(IpPrefix(InetAddress.getByName(address), prefixLength))
                 }
                 AppLogger.i(TAG, "LAN bypass enabled for private IPv4 and local IPv6 ranges")
             } else {

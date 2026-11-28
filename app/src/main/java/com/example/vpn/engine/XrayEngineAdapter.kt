@@ -528,9 +528,7 @@ class XrayEngineAdapter : VpnEngineAdapter {
         val serverTrimmed = profile.server.trim()
         // Only fall back TLS SNI to profile.server when profile.server is a DNS hostname (RFC 6066 forbids IP literals in SNI)
         val effectiveSni = profile.sni.trim().ifBlank {
-            profile.wsHost.trim().ifBlank {
-                if (!isIpLiteral(serverTrimmed)) serverTrimmed else ""
-            }
+            if (!isIpLiteral(serverTrimmed)) serverTrimmed else ""
         }
         // WebSocket Host and TLS SNI are independent protocol fields.
         val effectiveWsHost = profile.wsHost.trim().ifBlank { serverTrimmed }

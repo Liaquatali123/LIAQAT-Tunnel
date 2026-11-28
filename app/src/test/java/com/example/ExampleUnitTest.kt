@@ -1641,4 +1641,18 @@ class ExampleUnitTest {
         assertFalse(profile.bypassLan)
     }
 
+    @Test
+    fun testWebSocketHostDoesNotBecomeTlsSni() {
+        val uri = "vless://d342d110-d4a3-4513-bfa6-07a5e0f0ff37@edge.example:443?security=tls&type=ws&host=cdn.example&path=%2Fws#Separate-Headers"
+        val parsed = ConfigParser.parse(uri)
+        assertTrue(parsed is ParseResult.Success)
+        val profile = (parsed as ParseResult.Success).profile
+        assertEquals("edge.example", profile.sni)
+        assertEquals("cdn.example", profile.wsHost)
+        val outbound = JSONObject(XrayEngineAdapter().buildXrayConfig(profile, 10808)).getJSONArray("outbounds").getJSONObject(0)
+        val stream = outbound.getJSONObject("streamSettings")
+        assertEquals("edge.example", stream.getJSONObject("tlsSettings").getString("serverName"))
+        assertEquals("cdn.example", stream.getJSONObject("wsSettings").getString("host"))
+    }
+
 }

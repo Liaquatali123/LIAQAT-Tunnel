@@ -248,7 +248,7 @@ object ConfigParser {
             val rawTls = json.optString("tls", "none").trim().lowercase()
             val security = if (rawTls == "tls" || rawTls == "1" || rawTls == "true") "tls" else if (rawTls == "reality") "reality" else "none"
             val wsHost = json.optString("host", "").trim()
-            val sni = json.optString("sni", "").trim().ifBlank { wsHost.ifBlank { if (security == "tls") server else "" } }
+            val sni = json.optString("sni", "").trim().ifBlank { if (security == "tls") server else "" }
             val path = json.optString("path", "").trim()
             val alpn = json.optString("alpn", "").trim()
             val fp = json.optString("fp", "chrome").trim().ifBlank { "chrome" }
@@ -378,7 +378,7 @@ object ConfigParser {
 
         val wsHost = (queryParams["host"] ?: queryParams["obfsParam"] ?: "").trim()
         val sni = (queryParams["sni"] ?: queryParams["peer"] ?: "").trim().ifEmpty {
-            wsHost.ifEmpty { if (security == "tls") server else "" }
+            if (security == "tls") server else ""
         }
         val path = (queryParams["path"] ?: queryParams["serviceName"] ?: "").trim()
         val alpn = (queryParams["alpn"] ?: "").trim()
@@ -468,7 +468,7 @@ object ConfigParser {
 
         val wsHost = (queryParams["host"] ?: "").trim()
         val sni = (queryParams["sni"] ?: queryParams["peer"] ?: "").trim().ifEmpty {
-            wsHost.ifEmpty { if (security == "tls" || security == "reality") rawHost else "" }
+            if (security == "tls" || security == "reality") rawHost else ""
         }
         val headerType = (queryParams["headerType"] ?: "none").trim().ifEmpty { "none" }
         val grpcMode = (queryParams["mode"] ?: "gun").trim().ifEmpty { "gun" }
@@ -540,7 +540,7 @@ object ConfigParser {
         val queryParams = parseQueryParams(rawQuery.ifEmpty { uri.encodedQuery })
         val name = uri.fragment?.let { decodeUrlComponent(it) } ?: "Trojan-$host:$port"
         val wsHost = (queryParams["host"] ?: "").trim()
-        val sni = (queryParams["sni"] ?: queryParams["peer"] ?: "").trim().ifEmpty { wsHost.ifEmpty { host } }
+        val sni = (queryParams["sni"] ?: queryParams["peer"] ?: "").trim().ifEmpty { host }
         val network = (queryParams["type"] ?: "tcp").trim().lowercase().ifEmpty { "tcp" }
         val path = (queryParams["path"] ?: queryParams["serviceName"] ?: "").trim()
         val security = (queryParams["security"] ?: "tls").trim().lowercase().ifEmpty { "tls" }
@@ -910,7 +910,7 @@ object ConfigParser {
                     network = network,
                     kcpSeed = kcpSeed,
                     path = path,
-                    sni = sni.ifBlank { wsHost },
+                    sni = sni.ifBlank { if (security == "tls" || security == "reality") server else "" },
                     wsHost = wsHost,
                     grpcMode = grpcMode,
                     grpcAuthority = grpcAuthority,
@@ -1124,7 +1124,7 @@ object ConfigParser {
                     put("net", profile.network)
                     put("tls", profile.security)
                     put("sni", profile.sni)
-                    put("host", profile.wsHost.ifBlank { profile.sni })
+                    put("host", profile.wsHost)
                     put("path", profile.path)
                     put("alpn", profile.alpn)
                     put("fp", profile.fingerprint)
