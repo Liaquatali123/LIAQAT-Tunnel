@@ -2,6 +2,7 @@ package com.example
 
 import com.example.data.AppLogger
 import com.example.model.ProtocolType
+import com.example.model.SshTunnelMode
 import com.example.model.VpnProfile
 import com.example.model.VpnState
 import com.example.parser.ConfigParser
