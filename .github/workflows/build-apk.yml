@@ -32,16 +32,58 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Go for the pinned Xray source
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.27.1"
+
       - name: Set up Android SDK command-line tools
         uses: android-actions/setup-android@v4
         with:
           packages: ''
 
-      - name: Install Android platform and build tools
+      - name: Install Android platform, build tools and NDK
         shell: bash
         run: |
           set -euo pipefail
-          sdkmanager --install "platforms;android-36.1" "build-tools;36.0.0"
+          sdkmanager --install "platforms;android-36.1" "build-tools;36.0.0" "platforms;android-37.0" "build-tools;37.0.0" "ndk;29.0.14206865"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+
+      - name: Prepare custom Xray AAR cache directory
+        run: mkdir -p app/libs
+
+      - name: Restore custom Xray AAR cache
+        id: xray-cache
+        uses: actions/cache@v4
+        with:
+          path: app/libs/libv2ray.aar
+          key: custom-xray-v26.10.21-1b1647cd-vless-optin-v1-${{ runner.os }}
+
+      - name: Build custom Xray AAR with scoped plaintext VLESS support
+        if: steps.xray-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch v26.10.21 https://github.com/2dust/AndroidLibXrayLite.git "$RUNNER_TEMP/AndroidLibXrayLite"
+          git clone --filter=blob:none https://github.com/XTLS/Xray-core.git "$RUNNER_TEMP/Xray-core"
+          git -C "$RUNNER_TEMP/Xray-core" checkout 1b1647cd9ddf
+          python3 "$GITHUB_WORKSPACE/.github/scripts/patch-xray-core.py" "$RUNNER_TEMP/Xray-core/infra/conf/xray.go"
+
+          cd "$RUNNER_TEMP/AndroidLibXrayLite"
+          go mod edit -replace=github.com/xtls/xray-core="$RUNNER_TEMP/Xray-core"
+          mkdir -p assets data
+          bash gen_assets.sh download
+          cp -v data/*.dat assets/
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          gomobile init
+          go mod tidy -v
+          gomobile bind -v -androidapi 24 -trimpath -ldflags='-s -w -buildid= -checklinkname=0' ./
+          test -s libv2ray.aar
+          cp -v libv2ray.aar "$GITHUB_WORKSPACE/app/libs/libv2ray.aar"
+          echo "Custom Xray AAR built with only the VLESS-specific plaintext opt-in."
+
+
 
       - name: Set up Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
@@ -94,10 +136,9 @@ jobs:
           set -euo pipefail
           mkdir -p app/libs app/src/main/assets
 
-          curl --fail --location --retry 4 --retry-all-errors \
-            "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.10.21/libv2ray.aar" \
-            --output app/libs/libv2ray.aar
-          echo "e56ec3b06485fe7b37af26948673951edf719c50d6bbc618b8539045952adde4  app/libs/libv2ray.aar" | sha256sum --check -
+          test -s app/libs/libv2ray.aar
+          echo "Custom Xray AAR SHA256:"
+          sha256sum app/libs/libv2ray.aar
 
           curl --fail --location --retry 4 --retry-all-errors \
             "https://github.com/heiher/hev-socks5-tunnel/releases/download/2.19.3/hev-socks5-tunnel.aar" \

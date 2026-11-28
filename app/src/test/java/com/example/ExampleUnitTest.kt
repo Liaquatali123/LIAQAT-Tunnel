@@ -139,6 +139,37 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun testPlaintextVlessWsProfileUsesScopedCoreOptInAndPreservesHostFallback() {
+        val uri = "vless://d7937a37-cf78-40e0-96b6-cadc3b3f1ed6@testok.tipsdunya.com:80?type=ws&encryption=none&path=%2Fgoons&host=&security=none#Vless%2080-og"
+        val parsed = ConfigParser.parse(uri)
+        assertTrue(parsed is ParseResult.Success)
+        val profile = (parsed as ParseResult.Success).profile
+        val config = JSONObject(XrayEngineAdapter().buildXrayConfig(profile, 10808))
+        val outbound = config.getJSONArray("outbounds").getJSONObject(0)
+        assertEquals("vless", outbound.getString("protocol"))
+        assertTrue(outbound.getBoolean("allowInsecureVless"))
+        val stream = outbound.getJSONObject("streamSettings")
+        assertEquals("ws", stream.getString("network"))
+        assertEquals("none", stream.getString("security"))
+        val ws = stream.getJSONObject("wsSettings")
+        assertEquals("/goons", ws.getString("path"))
+        assertEquals("testok.tipsdunya.com", ws.getString("host"))
+
+        val tlsProfile = profile.copy(id = "tls-vless", security = "tls", port = 443)
+        val tlsOutbound = JSONObject(XrayEngineAdapter().buildXrayConfig(tlsProfile, 10808))
+            .getJSONArray("outbounds").getJSONObject(0)
+        assertFalse(tlsOutbound.getBoolean("allowInsecureVless"))
+
+        val trojanProfile = VpnProfile(
+            id = "trojan", name = "Trojan", protocol = ProtocolType.TROJAN,
+            server = "trojan.example.com", port = 443, password = "secret", security = "tls"
+        )
+        val trojanOutbound = JSONObject(XrayEngineAdapter().buildXrayConfig(trojanProfile, 10808))
+            .getJSONArray("outbounds").getJSONObject(0)
+        assertFalse(trojanOutbound.getBoolean("allowInsecureVless"))
+    }
+
+    @Test
     fun testVpnStateProperties() {
         val disconnected = VpnState.Disconnected
         assertFalse(disconnected.isConnected)

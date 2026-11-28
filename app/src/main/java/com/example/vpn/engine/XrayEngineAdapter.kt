@@ -536,6 +536,11 @@ class XrayEngineAdapter : VpnEngineAdapter {
         val outbounds = JSONArray()
         val proxyOutbound = JSONObject().apply {
             put("tag", "proxy")
+            val allowInsecureVless = profile.protocol == ProtocolType.VLESS && normalizedSecurity == "none"
+            put("allowInsecureVless", allowInsecureVless)
+            if (allowInsecureVless) {
+                AppLogger.w(TAG, "WARNING: Plaintext VLESS selected. Traffic between this device and the server is not encrypted.")
+            }
             when (profile.protocol) {
                 ProtocolType.VLESS -> {
                     put("protocol", "vless")
