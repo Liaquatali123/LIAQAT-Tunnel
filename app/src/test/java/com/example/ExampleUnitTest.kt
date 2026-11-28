@@ -1604,4 +1604,29 @@ class ExampleUnitTest {
         assertEquals(1350, kcp.getInt("mtu"))
     }
 
+    @Test
+    fun testShadowsocksSip002BracketedIpv6Endpoint() {
+        val credentials = android.util.Base64.encodeToString("aes-256-gcm:secret".toByteArray(), android.util.Base64.NO_WRAP)
+        val result = ConfigParser.parse("ss://$credentials@[2001:db8::1]:8388#IPv6")
+        assertTrue(result is ParseResult.Success)
+        val profile = (result as ParseResult.Success).profile
+        assertEquals(ProtocolType.SHADOWSOCKS, profile.protocol)
+        assertEquals("2001:db8::1", profile.server)
+        assertEquals(8388, profile.port)
+        assertEquals("aes-256-gcm:secret", profile.password)
+    }
+
+    @Test
+    fun testTrojanExportPreservesTransportAndTlsOptions() {
+        val original = VpnProfile(id = "trojan", name = "Trojan WS", protocol = ProtocolType.TROJAN, server = "edge.example", port = 8443, password = "secret", security = "tls", network = "ws", path = "/tunnel", sni = "tls.example", wsHost = "cdn.example", alpn = "h2,http/1.1", fingerprint = "chrome")
+        val parsed = ConfigParser.parse(ConfigParser.exportProfileToUri(original))
+        assertTrue(parsed is ParseResult.Success)
+        val profile = (parsed as ParseResult.Success).profile
+        assertEquals("ws", profile.network)
+        assertEquals("/tunnel", profile.path)
+        assertEquals("tls.example", profile.sni)
+        assertEquals("cdn.example", profile.wsHost)
+        assertEquals("h2,http/1.1", profile.alpn)
+    }
+
 }

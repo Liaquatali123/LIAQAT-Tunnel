@@ -195,6 +195,7 @@ class SshEngineAdapter : VpnEngineAdapter {
         try {
             currentMode = profile.sshMode
             activeVpnService = vpnService
+            if (profile.port !in 1..65535) throw IllegalArgumentException("SSH server port must be between 1 and 65535")
 
             // Normalize target string if server contains user/pass/port info (e.g. www.openx.com:80@Test:Test1)
             val parsedTarget = if (profile.server.contains("@") || profile.server.startsWith("ssh://", ignoreCase = true) || profile.server.contains(":")) {
@@ -241,7 +242,7 @@ class SshEngineAdapter : VpnEngineAdapter {
                     )
                     AppLogger.i(TAG, "Local Port Forwarding active on 127.0.0.1:$bound -> ${profile.sshRemoteForwardHost}:${profile.sshRemoteForwardPort}")
                 } catch (e: Exception) {
-                    AppLogger.w(TAG, "Local port forwarding note: ${e.message}")
+                    throw IllegalStateException("SSH local port forwarding failed: ${e.message}", e)
                 }
             } else if (profile.sshMode == SshTunnelMode.REMOTE_PORT_FORWARDING) {
                 try {
@@ -252,7 +253,7 @@ class SshEngineAdapter : VpnEngineAdapter {
                     )
                     AppLogger.i(TAG, "Remote Port Forwarding active on remote :${profile.sshRemoteListenPort} -> local ${profile.sshRemoteForwardHost}:${profile.sshRemoteForwardPort}")
                 } catch (e: Exception) {
-                    AppLogger.w(TAG, "Remote port forwarding rejected by server (server GatewayPorts policy): ${e.message}")
+                    throw IllegalStateException("SSH remote port forwarding failed (check server GatewayPorts policy): ${e.message}", e)
                 }
             }
 

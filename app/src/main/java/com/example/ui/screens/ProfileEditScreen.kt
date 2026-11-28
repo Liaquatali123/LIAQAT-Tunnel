@@ -73,6 +73,16 @@ fun ProfileEditScreen(
     var path by remember { mutableStateOf(initialProfile?.path ?: "") }
     var pbk by remember { mutableStateOf(initialProfile?.publicKey ?: "") }
     var flow by remember { mutableStateOf(initialProfile?.flow ?: "") }
+    var wsHost by remember { mutableStateOf(initialProfile?.wsHost ?: "") }
+    var grpcMode by remember { mutableStateOf(initialProfile?.grpcMode ?: "gun") }
+    var grpcAuthority by remember { mutableStateOf(initialProfile?.grpcAuthority ?: "") }
+    var fingerprint by remember { mutableStateOf(initialProfile?.fingerprint ?: "chrome") }
+    var alpn by remember { mutableStateOf(initialProfile?.alpn ?: "") }
+    var shortId by remember { mutableStateOf(initialProfile?.shortId ?: "") }
+    var spiderX by remember { mutableStateOf(initialProfile?.spiderX ?: "") }
+    var headerType by remember { mutableStateOf(initialProfile?.headerType ?: "none") }
+    var encryption by remember { mutableStateOf(initialProfile?.encryption ?: "none") }
+    var kcpSeed by remember { mutableStateOf(initialProfile?.kcpSeed ?: "") }
 
     // SSH Specific State
     var sshMode by remember { mutableStateOf(initialProfile?.sshMode ?: SshTunnelMode.DIRECT) }
@@ -99,6 +109,7 @@ fun ProfileEditScreen(
 
     // DNS & IPv6
     var dnsPrimary by remember { mutableStateOf(initialProfile?.dnsPrimary ?: "") }
+    var dnsSecondary by remember { mutableStateOf(initialProfile?.dnsSecondary ?: "") }
     var blockIpv6 by remember { mutableStateOf(initialProfile?.blockIpv6 ?: true) }
     var perAppProxy by remember { mutableStateOf(initialProfile?.perAppProxy ?: false) }
     var selectedAppsText by remember { mutableStateOf(initialProfile?.selectedApps?.joinToString(", ") ?: "") }
@@ -827,13 +838,28 @@ fun ProfileEditScreen(
                         )
                     }
 
-                    OutlinedTextField(
-                        value = sni,
-                        onValueChange = { sni = it },
-                        label = { Text("SNI / ServerName") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    OutlinedTextField(value = sni, onValueChange = { sni = it }, label = { Text("TLS SNI / ServerName") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                    if (network.equals("ws", true) || network.equals("httpupgrade", true) || network.equals("xhttp", true)) {
+                        OutlinedTextField(value = wsHost, onValueChange = { wsHost = it }, label = { Text("WebSocket / HTTP Host header") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                    }
+                    if (security.equals("tls", true) || security.equals("reality", true)) {
+                        OutlinedTextField(value = fingerprint, onValueChange = { fingerprint = it }, label = { Text("TLS / uTLS fingerprint") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = alpn, onValueChange = { alpn = it }, label = { Text("ALPN (comma-separated)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                    }
+                    if (network.equals("grpc", true)) {
+                        OutlinedTextField(value = grpcMode, onValueChange = { grpcMode = it }, label = { Text("gRPC mode (gun / multi)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = grpcAuthority, onValueChange = { grpcAuthority = it }, label = { Text("gRPC authority") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                    }
+                    if (network.equals("kcp", true)) {
+                        OutlinedTextField(value = kcpSeed, onValueChange = { kcpSeed = it }, label = { Text("mKCP seed (optional)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = headerType, onValueChange = { headerType = it }, label = { Text("mKCP header type") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                    }
+                    if (network.equals("tcp", true)) {
+                        OutlinedTextField(value = headerType, onValueChange = { headerType = it }, label = { Text("TCP header type (none / http)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                    }
+                    if (protocol == ProtocolType.VMESS) {
+                        OutlinedTextField(value = encryption, onValueChange = { encryption = it }, label = { Text("VMess cipher (auto / aes-128-gcm / chacha20-poly1305 / zero)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                    }
 
                     if (network.equals("ws", ignoreCase = true) || network.equals("grpc", ignoreCase = true)) {
                         OutlinedTextField(
@@ -846,13 +872,9 @@ fun ProfileEditScreen(
                     }
 
                     if (security.equals("reality", ignoreCase = true)) {
-                        OutlinedTextField(
-                            value = pbk,
-                            onValueChange = { pbk = it },
-                            label = { Text("Reality Public Key (pbk)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
+                        OutlinedTextField(value = pbk, onValueChange = { pbk = it }, label = { Text("Reality Public Key (pbk)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = shortId, onValueChange = { shortId = it }, label = { Text("REALITY Short ID (sid)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = spiderX, onValueChange = { spiderX = it }, label = { Text("REALITY SpiderX (spx)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
                     }
 
                     if (protocol == ProtocolType.VLESS) {
@@ -887,14 +909,8 @@ fun ProfileEditScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                OutlinedTextField(
-                    value = dnsPrimary,
-                    onValueChange = { dnsPrimary = it },
-                    label = { Text("Custom Tunnel DNS (optional)") },
-                    placeholder = { Text("Leave empty for network DNS") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
+                OutlinedTextField(value = dnsPrimary, onValueChange = { dnsPrimary = it }, label = { Text("Primary Tunnel DNS (optional)") }, placeholder = { Text("Leave empty for network DNS") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                OutlinedTextField(value = dnsSecondary, onValueChange = { dnsSecondary = it }, label = { Text("Secondary Tunnel DNS (optional)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1035,14 +1051,25 @@ fun ProfileEditScreen(
                         socksUsername = socksUsername.trim(),
                         security = security,
                         network = network,
-                        sni = sni,
+                        kcpSeed = kcpSeed.trim(),
+                        sni = sni.trim(),
+                        wsHost = wsHost.trim(),
                         path = path,
-                        publicKey = pbk,
+                        headerType = headerType.trim().ifBlank { "none" },
+                        grpcMode = grpcMode.trim().ifBlank { "gun" },
+                        grpcAuthority = grpcAuthority.trim(),
+                        fingerprint = fingerprint.trim().ifBlank { "chrome" },
+                        alpn = alpn.trim(),
+                        shortId = shortId.trim(),
+                        spiderX = spiderX.trim(),
+                        encryption = encryption.trim().ifBlank { "none" },
+                        publicKey = pbk.trim(),
                         sshUsername = effectiveUser,
                         sshPayload = sshPayload,
                         proxyHost = proxyHost,
                         proxyPort = proxyPortText.toIntOrNull() ?: 0,
-                        dnsPrimary = dnsPrimary,
+                        dnsPrimary = dnsPrimary.trim(),
+                        dnsSecondary = dnsSecondary.trim(),
                         blockIpv6 = blockIpv6,
                         perAppProxy = perAppProxy,
                         selectedApps = apps,

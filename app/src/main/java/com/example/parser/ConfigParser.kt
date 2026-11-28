@@ -121,6 +121,7 @@ object ConfigParser {
             profile.socksUsername,
             profile.security.lowercase(),
             profile.network.lowercase(),
+            profile.kcpSeed,
             profile.path,
             profile.sni.lowercase(),
             profile.wsHost.lowercase(),
@@ -251,6 +252,7 @@ object ConfigParser {
             val alpn = json.optString("alpn", "").trim()
             val fp = json.optString("fp", "chrome").trim().ifBlank { "chrome" }
             val headerType = json.optString("type", "none").trim().ifBlank { "none" }
+            val kcpSeed = json.optString("seed", "").trim()
             val cipher = json.optString("scy", "auto").trim().ifBlank { "auto" }
             val allowInsecure = json.optBoolean("allowInsecure", false) ||
                 json.optString("allowInsecure").equals("1") ||
@@ -265,6 +267,7 @@ object ConfigParser {
                 password = id,
                 security = security,
                 network = network,
+                kcpSeed = kcpSeed,
                 path = path,
                 sni = sni,
                 wsHost = wsHost,
@@ -380,6 +383,7 @@ object ConfigParser {
         val alpn = (queryParams["alpn"] ?: "").trim()
         val fp = (queryParams["fp"] ?: "chrome").trim().ifEmpty { "chrome" }
         val headerType = (queryParams["headerType"] ?: "none").trim().ifEmpty { "none" }
+        val kcpSeed = (queryParams["seed"] ?: queryParams["kcpSeed"] ?: "").trim()
         val allowInsecure = listOf("allowInsecure", "insecure", "allow_insecure").any { key ->
             val v = queryParams[key]?.trim()
             v == "1" || v.equals("true", ignoreCase = true)
@@ -397,6 +401,7 @@ object ConfigParser {
             password = uuid,
             security = security,
             network = network,
+            kcpSeed = kcpSeed,
             path = path,
             sni = sni,
             wsHost = wsHost,
@@ -410,7 +415,7 @@ object ConfigParser {
     }
 
     private val SUPPORTED_VLESS_NETWORKS = setOf(
-        "tcp", "ws", "websocket", "grpc", "gun", "httpupgrade", "xhttp", "splithttp", "h2", "http", "kcp"
+        "tcp", "raw", "ws", "websocket", "grpc", "gun", "httpupgrade", "xhttp", "splithttp", "kcp"
     )
     private val SUPPORTED_VLESS_SECURITIES = setOf("none", "tls", "reality", "")
 
@@ -453,6 +458,7 @@ object ConfigParser {
             return ParseResult.Failure("Unsupported VLESS transport type: '$rawNetwork'")
         }
         val network = when (rawNetwork) {
+            "raw" -> "tcp"
             "websocket" -> "ws"
             "gun" -> "grpc"
             "splithttp" -> "xhttp"
@@ -564,55 +570,55 @@ object ConfigParser {
     }
 
     private fun parseShadowsocks(uriStr: String): ParseResult {
-        // ss://BASE64(method:password)@host:port#name or ss://BASE64(method:password@host:port)#name
-        val withoutScheme = uriStr.substring(5)
-        val parts = withoutScheme.split("#", limit = 2)
-        val mainPart = parts[0]
-        val name = if (parts.size > 1) decodeUrlComponent(parts[1]) else "Shadowsocks"
-
-        if (mainPart.contains("@")) {
-            val atSplit = mainPart.split("@", limit = 2)
-            val userInfoDecoded = try {
-                String(Base64.decode(atSplit[0], Base64.DEFAULT or Base64.URL_SAFE), StandardCharsets.UTF_8)
-            } catch (e: Exception) {
-                atSplit[0]
-            }
-            val hostPort = atSplit[1].split(":")
-            val host = hostPort[0]
-            val port = hostPort.getOrNull(1)?.toIntOrNull() ?: 8388
-            return ParseResult.Success(
-                VpnProfile(
-                    id = UUID.randomUUID().toString(),
-                    name = name,
-                    protocol = ProtocolType.SHADOWSOCKS,
-                    server = host,
-                    port = port,
-                    password = userInfoDecoded
-                )
-            )
+        // SIP002 and legacy Shadowsocks URIs, including bracketed IPv6 endpoints.
+        val body = uriStr.substringAfter("ss://", "")
+        val mainPart = body.substringBefore("#").substringBefore("?")
+        val name = decodeUrlComponent(body.substringAfter("#", "Shadowsocks").substringBefore("?"))
+        val at = mainPart.lastIndexOf('@')
+        val userInfo: String
+        val endpoint: String
+        if (at >= 0) {
+            val rawUser = mainPart.substring(0, at)
+            userInfo = try { String(Base64.decode(rawUser, Base64.DEFAULT or Base64.URL_SAFE), StandardCharsets.UTF_8) }
+                catch (_: Exception) { decodeUrlComponent(rawUser) }
+            endpoint = mainPart.substring(at + 1)
         } else {
-            val decoded = try {
-                String(Base64.decode(mainPart, Base64.DEFAULT or Base64.URL_SAFE), StandardCharsets.UTF_8)
-            } catch (e: Exception) {
-                return ParseResult.Failure("Invalid Shadowsocks Base64 string", e.message)
-            }
-            // decoded is method:password@host:port
-            val atSplit = decoded.split("@", limit = 2)
-            if (atSplit.size < 2) return ParseResult.Failure("Malformed Shadowsocks URI: missing @")
-            val hostPort = atSplit[1].split(":")
-            val host = hostPort[0]
-            val port = hostPort.getOrNull(1)?.toIntOrNull() ?: 8388
-            return ParseResult.Success(
-                VpnProfile(
-                    id = UUID.randomUUID().toString(),
-                    name = name,
-                    protocol = ProtocolType.SHADOWSOCKS,
-                    server = host,
-                    port = port,
-                    password = atSplit[0]
-                )
-            )
+            val decoded = try { String(Base64.decode(mainPart, Base64.DEFAULT or Base64.URL_SAFE), StandardCharsets.UTF_8) }
+                catch (e: Exception) { return ParseResult.Failure("Invalid Shadowsocks Base64 string", e.message) }
+            val split = decoded.lastIndexOf('@')
+            if (split <= 0) return ParseResult.Failure("Malformed Shadowsocks URI: missing method/password or endpoint")
+            userInfo = decoded.substring(0, split)
+            endpoint = decoded.substring(split + 1)
         }
+        if (userInfo.isBlank() || !userInfo.contains(':')) return ParseResult.Failure("Shadowsocks URI is missing method:password")
+        val (host, port) = parseShadowsocksEndpoint(endpoint) ?: return ParseResult.Failure("Invalid Shadowsocks host or port")
+        return ParseResult.Success(VpnProfile(id = UUID.randomUUID().toString(), name = name.ifBlank { "Shadowsocks-$host:$port" }, protocol = ProtocolType.SHADOWSOCKS, server = host, port = port, password = userInfo))
+    }
+
+    private fun parseShadowsocksEndpoint(raw: String): Pair<String, Int>? {
+        val value = raw.trim()
+        if (value.isEmpty()) return null
+        val host: String
+        val port: Int
+        if (value.startsWith("[")) {
+            val close = value.indexOf(']')
+            if (close <= 1) return null
+            host = value.substring(1, close)
+            val suffix = value.substring(close + 1)
+            port = when {
+                suffix.isEmpty() -> 8388
+                suffix.startsWith(":") -> suffix.substring(1).toIntOrNull() ?: return null
+                else -> return null
+            }
+        } else if (value.count { it == ':' } == 1) {
+            host = value.substringBeforeLast(':').trim()
+            port = value.substringAfterLast(':').toIntOrNull() ?: return null
+        } else {
+            host = value
+            port = 8388
+        }
+        if (host.isBlank() || port !in 1..65535) return null
+        return host to port
     }
 
     private fun parseSocksUri(uriStr: String): ParseResult {
@@ -1097,7 +1103,14 @@ object ConfigParser {
                 "vless://${profile.password}@${profile.server}:${profile.port}?${params.joinToString("&")}#${Uri.encode(profile.name)}"
             }
             ProtocolType.TROJAN -> {
-                "trojan://${profile.password}@${profile.server}:${profile.port}?sni=${profile.sni}#${Uri.encode(profile.name)}"
+                val params = mutableListOf("security=${Uri.encode(profile.security.ifBlank { "tls" })}", "type=${Uri.encode(profile.network.ifBlank { "tcp" })}")
+                if (profile.sni.isNotBlank()) params.add("sni=${Uri.encode(profile.sni)}")
+                if (profile.wsHost.isNotBlank()) params.add("host=${Uri.encode(profile.wsHost)}")
+                if (profile.path.isNotBlank()) params.add("path=${Uri.encode(profile.path)}")
+                if (profile.alpn.isNotBlank()) params.add("alpn=${Uri.encode(profile.alpn)}")
+                if (profile.fingerprint.isNotBlank()) params.add("fp=${Uri.encode(profile.fingerprint)}")
+                if (profile.allowInsecureSsl) params.add("allowInsecure=1")
+                "trojan://${Uri.encode(profile.password)}@${profile.server}:${profile.port}?${params.joinToString("&")}#${Uri.encode(profile.name)}"
             }
             ProtocolType.VMESS -> {
                 val json = JSONObject().apply {
@@ -1111,6 +1124,11 @@ object ConfigParser {
                     put("sni", profile.sni)
                     put("host", profile.wsHost.ifBlank { profile.sni })
                     put("path", profile.path)
+                    put("alpn", profile.alpn)
+                    put("fp", profile.fingerprint)
+                    put("type", profile.headerType)
+                    put("scy", profile.encryption)
+                    put("seed", profile.kcpSeed)
                 }
                 "vmess://${Base64.encodeToString(json.toString().toByteArray(), Base64.NO_WRAP)}"
             }
