@@ -9,6 +9,7 @@ import com.example.model.VpnProfile
 import com.example.security.CtpConfigCrypto
 import com.example.security.CtpDecryptResult
 import com.example.security.CtpExportOptions
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
