@@ -57,9 +57,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/libs/libv2ray.aar
-          key: custom-xray-v26.10.21-1b1647cd-vless-optin-v1-${{ runner.os }}
+          key: custom-xray-v26.10.21-1b1647cd-vless-trojan-plaintext-optin-v2-${{ runner.os }}
 
-      - name: Build custom Xray AAR with scoped plaintext VLESS support
+      - name: Build custom Xray AAR with scoped plaintext VLESS and Trojan support
         if: steps.xray-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
@@ -81,7 +81,7 @@ jobs:
           gomobile bind -v -androidapi 24 -trimpath -ldflags='-s -w -buildid= -checklinkname=0' ./
           test -s libv2ray.aar
           cp -v libv2ray.aar "$GITHUB_WORKSPACE/app/libs/libv2ray.aar"
-          echo "Custom Xray AAR built with only the VLESS-specific plaintext opt-in."
+          echo "Custom Xray AAR built with protocol-scoped VLESS and Trojan plaintext opt-ins only."
 
 
 
