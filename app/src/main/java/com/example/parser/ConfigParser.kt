@@ -89,11 +89,13 @@ object ConfigParser {
                 is ParseResult.Failure -> BatchParseResult(emptyList(), listOf(result.reason))
             }
         }
-        val limit = maxProfiles.coerceIn(1, 500)
+        // Import every supplied entry. There is deliberately no artificial profile-count
+        // cap: the user owns the subscription/configuration and may import as many nodes
+        // as the device can reasonably process. Invalid entries are reported individually.
         val profiles = mutableListOf<VpnProfile>()
         val failures = mutableListOf<String>()
         val seen = mutableSetOf<String>()
-        lines.take(limit).forEachIndexed { index, line ->
+        lines.forEachIndexed { index, line ->
             when (val result = parse(line, unlockPassword, context)) {
                 is ParseResult.Success -> {
                     val profile = result.profile
@@ -103,7 +105,6 @@ object ConfigParser {
                 is ParseResult.Failure -> failures.add("Line ${index + 1}: ${result.reason}")
             }
         }
-        if (lines.size > limit) failures.add("Only the first $limit entries were checked (subscription limit)")
         return BatchParseResult(profiles, failures)
     }
 
