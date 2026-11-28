@@ -1701,4 +1701,29 @@ class ExampleUnitTest {
         assertTrue(result is ParseResult.Failure)
     }
 
+    @Test
+    fun testSshUriRoundTripPreservesProxyChainForwardingAndKeyAuth() {
+        val original = VpnProfile(
+            id = "ssh-roundtrip", name = "SSH Full", protocol = ProtocolType.SSH,
+            server = "edge.example", port = 2222, sshUsername = "alice", password = "ssh-pass",
+            sshMode = SshTunnelMode.HTTP_PROXY, sshPayload = "CONNECT [host]:[port] HTTP/1.1",
+            proxyHost = "proxy.example", proxyPort = 8080, sshSni = "tls.example", sshWsPath = "/ssh",
+            sshProxyUser = "proxy-user", sshProxyPass = "proxy-pass", sshChainProxyHost = "chain.example",
+            sshChainProxyPort = 1080, sshChainProxyType = "SOCKS5", sshLocalForwardPort = 10880,
+            sshRemoteForwardHost = "127.0.0.1", sshRemoteForwardPort = 80, sshRemoteListenPort = 8080,
+            sshPrivateKey = "PRIVATE KEY DATA", sshPassphrase = "key-pass", sshCustomHeaders = "X-Test: yes"
+        )
+        val parsed = ConfigParser.parse(ConfigParser.exportProfileToUri(original))
+        assertTrue(parsed is ParseResult.Success)
+        val profile = (parsed as ParseResult.Success).profile
+        assertEquals(original.sshMode, profile.sshMode)
+        assertEquals(original.proxyHost, profile.proxyHost)
+        assertEquals(original.sshChainProxyHost, profile.sshChainProxyHost)
+        assertEquals(original.sshLocalForwardPort, profile.sshLocalForwardPort)
+        assertEquals(original.sshRemoteListenPort, profile.sshRemoteListenPort)
+        assertEquals(original.sshPrivateKey, profile.sshPrivateKey)
+        assertEquals(original.sshPassphrase, profile.sshPassphrase)
+        assertEquals(original.sshCustomHeaders, profile.sshCustomHeaders)
+    }
+
 }

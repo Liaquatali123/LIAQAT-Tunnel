@@ -675,6 +675,9 @@ object ConfigParser {
         val remoteFwdHost = queryParams["remote_fwd_host"] ?: "127.0.0.1"
         val remoteFwdPort = queryParams["remote_fwd_port"]?.toIntOrNull() ?: 80
         val remoteListenPort = queryParams["remote_listen_port"]?.toIntOrNull() ?: 8080
+        val privateKey = queryParams["ssh_private_key"] ?: ""
+        val passphrase = queryParams["ssh_passphrase"] ?: ""
+        val customHeaders = queryParams["custom_headers"] ?: ""
 
         val profile = VpnProfile(
             id = UUID.randomUUID().toString(),
@@ -698,7 +701,10 @@ object ConfigParser {
             sshLocalForwardPort = localFwdPort,
             sshRemoteForwardHost = remoteFwdHost,
             sshRemoteForwardPort = remoteFwdPort,
-            sshRemoteListenPort = remoteListenPort
+            sshRemoteListenPort = remoteListenPort,
+            sshPrivateKey = privateKey,
+            sshPassphrase = passphrase,
+            sshCustomHeaders = customHeaders
         )
         return ParseResult.Success(profile)
     }
@@ -1169,7 +1175,29 @@ object ConfigParser {
                 "vmess://${Base64.encodeToString(json.toString().toByteArray(), Base64.NO_WRAP)}"
             }
             ProtocolType.SSH -> {
-                "ssh://${profile.sshUsername}:${profile.password}@${profile.server}:${profile.port}?mode=${profile.sshMode.name}&proxy_host=${profile.proxyHost}&proxy_port=${profile.proxyPort}&sni=${profile.sshSni}&ws_path=${profile.sshWsPath}#${Uri.encode(profile.name)}"
+                val host = if (profile.server.contains(":") && !profile.server.startsWith("[")) "[${profile.server}]" else profile.server
+                val params = listOf(
+                    "mode" to profile.sshMode.name,
+                    "payload" to profile.sshPayload,
+                    "proxy_host" to profile.proxyHost,
+                    "proxy_port" to profile.proxyPort.toString(),
+                    "sni" to profile.sshSni,
+                    "ws_path" to profile.sshWsPath,
+                    "proxy_user" to profile.sshProxyUser,
+                    "proxy_pass" to profile.sshProxyPass,
+                    "chain_host" to profile.sshChainProxyHost,
+                    "chain_port" to profile.sshChainProxyPort.toString(),
+                    "chain_type" to profile.sshChainProxyType,
+                    "local_fwd_port" to profile.sshLocalForwardPort.toString(),
+                    "remote_fwd_host" to profile.sshRemoteForwardHost,
+                    "remote_fwd_port" to profile.sshRemoteForwardPort.toString(),
+                    "remote_listen_port" to profile.sshRemoteListenPort.toString(),
+                    "ssh_private_key" to profile.sshPrivateKey,
+                    "ssh_passphrase" to profile.sshPassphrase,
+                    "custom_headers" to profile.sshCustomHeaders
+                )
+                val query = params.joinToString("&") { (key, value) -> "$key=${Uri.encode(value)}" }
+                "ssh://${Uri.encode(profile.sshUsername)}:${Uri.encode(profile.password)}@${host}:${profile.port}?${query}#${Uri.encode(profile.name)}"
             }
             else -> {
                 exportProfileToJson(profile)

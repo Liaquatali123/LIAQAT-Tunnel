@@ -66,6 +66,9 @@ fun ProfileEditScreen(
     var server by remember { mutableStateOf(initialProfile?.server ?: "") }
     var portText by remember { mutableStateOf(initialProfile?.port?.toString() ?: if (protocol == ProtocolType.SSH) "22" else "443") }
     var password by remember { mutableStateOf(initialProfile?.password ?: "") }
+    private val initialSsCredential = initialProfile?.password.orEmpty()
+    var ssMethod by remember { mutableStateOf(if (initialSsCredential.contains(":")) initialSsCredential.substringBefore(":") else "aes-256-gcm") }
+    var ssPassword by remember { mutableStateOf(if (initialSsCredential.contains(":")) initialSsCredential.substringAfter(":") else initialSsCredential) }
     var socksUsername by remember { mutableStateOf(initialProfile?.socksUsername ?: "") }
     var security by remember { mutableStateOf(initialProfile?.security ?: if (protocol == ProtocolType.SSH) "none" else "tls") }
     var network by remember { mutableStateOf(initialProfile?.network ?: "tcp") }
@@ -800,13 +803,31 @@ fun ProfileEditScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text(if (protocol == ProtocolType.VLESS || protocol == ProtocolType.VMESS) "UUID" else "Password") },
-                        modifier = Modifier.fillMaxWidth().testTag("edit_xray_credential"),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    if (protocol == ProtocolType.SHADOWSOCKS) {
+                        OutlinedTextField(
+                            value = ssMethod,
+                            onValueChange = { ssMethod = it },
+                            label = { Text("Shadowsocks cipher method") },
+                            supportingText = { Text("Examples: aes-128-gcm, aes-256-gcm, chacha20-ietf-poly1305, 2022-blake3-aes-128-gcm") },
+                            modifier = Modifier.fillMaxWidth().testTag("edit_shadowsocks_method"),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = ssPassword,
+                            onValueChange = { ssPassword = it },
+                            label = { Text("Shadowsocks password") },
+                            modifier = Modifier.fillMaxWidth().testTag("edit_shadowsocks_password"),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    } else {
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text(if (protocol == ProtocolType.VLESS || protocol == ProtocolType.VMESS) "UUID" else "Password") },
+                            modifier = Modifier.fillMaxWidth().testTag("edit_xray_credential"),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
                     if (protocol == ProtocolType.SOCKS5) {
                         OutlinedTextField(
                             value = socksUsername,
@@ -1019,8 +1040,14 @@ fun ProfileEditScreen(
                     val effectiveServer = (targetInfo?.host ?: server).trim()
                     val effectivePort = targetInfo?.port ?: portText.toIntOrNull()
                     val effectiveUser = (if (sshUser.isNotBlank() && sshUser != "root") sshUser else (targetInfo?.username?.ifBlank { "root" } ?: sshUser)).trim()
-                    val effectivePass = if (password.isNotBlank()) password else (targetInfo?.password ?: "")
+                    val effectivePass = if (protocol == ProtocolType.SHADOWSOCKS) {
+                        if (ssMethod.isBlank() || ssPassword.isBlank()) "" else "${ssMethod.trim()}:${ssPassword}"
+                    } else if (password.isNotBlank()) password else (targetInfo?.password ?: "")
 
+                    if (protocol == ProtocolType.SHADOWSOCKS && effectivePass.isBlank()) {
+                        errorMessage = "Shadowsocks cipher method and password are required"
+                        return@Button
+                    }
                     if (effectiveServer.isBlank()) {
                         errorMessage = "Server address cannot be empty"
                         return@Button
