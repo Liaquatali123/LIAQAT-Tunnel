@@ -1655,4 +1655,34 @@ class ExampleUnitTest {
         assertEquals("cdn.example", stream.getJSONObject("wsSettings").getString("host"))
     }
 
+    @Test
+    fun testXrayJsonImportsHttpUpgradeAndXhttpHostPath() {
+        val upgradeJson = """{"outbounds":[{"protocol":"vless","settings":{"vnext":[{"address":"edge.example","port":443,"users":[{"id":"d342d110-d4a3-4513-bfa6-07a5e0f0ff37"}]}]},"streamSettings":{"network":"httpupgrade","httpupgradeSettings":{"path":"/upgrade","host":"cdn.example"}}}]}"""
+        val xhttpJson = """{"outbounds":[{"protocol":"vless","settings":{"vnext":[{"address":"edge.example","port":443,"users":[{"id":"d342d110-d4a3-4513-bfa6-07a5e0f0ff37"}]}]},"streamSettings":{"network":"xhttp","xhttpSettings":{"path":"/split","host":"split.example"}}}]}"""
+        val upgrade = ConfigParser.parse(upgradeJson)
+        val xhttp = ConfigParser.parse(xhttpJson)
+        assertTrue(upgrade is ParseResult.Success)
+        assertTrue(xhttp is ParseResult.Success)
+        assertEquals("/upgrade", (upgrade as ParseResult.Success).profile.path)
+        assertEquals("cdn.example", upgrade.profile.wsHost)
+        assertEquals("xhttp", (xhttp as ParseResult.Success).profile.network)
+        assertEquals("/split", xhttp.profile.path)
+        assertEquals("split.example", xhttp.profile.wsHost)
+    }
+
+    @Test
+    fun testXrayJsonImportsKcpAndTcpHeaderTypes() {
+        val kcpJson = """{"outbounds":[{"protocol":"vless","settings":{"vnext":[{"address":"edge.example","port":443,"users":[{"id":"d342d110-d4a3-4513-bfa6-07a5e0f0ff37"}]}]},"streamSettings":{"network":"kcp","kcpSettings":{"seed":"kcp-seed","header":{"type":"wechat-video"}}}}]}"""
+        val tcpJson = """{"outbounds":[{"protocol":"vless","settings":{"vnext":[{"address":"edge.example","port":443,"users":[{"id":"d342d110-d4a3-4513-bfa6-07a5e0f0ff37"}]}]},"streamSettings":{"network":"tcp","tcpSettings":{"header":{"type":"http","request":{"path":["/front"],"headers":{"Host":["front.example"]}}}}}}]}"""
+        val kcp = ConfigParser.parse(kcpJson)
+        val tcp = ConfigParser.parse(tcpJson)
+        assertTrue(kcp is ParseResult.Success)
+        assertTrue(tcp is ParseResult.Success)
+        assertEquals("kcp-seed", (kcp as ParseResult.Success).profile.kcpSeed)
+        assertEquals("wechat-video", kcp.profile.headerType)
+        assertEquals("http", (tcp as ParseResult.Success).profile.headerType)
+        assertEquals("/front", tcp.profile.path)
+        assertEquals("front.example", tcp.profile.wsHost)
+    }
+
 }

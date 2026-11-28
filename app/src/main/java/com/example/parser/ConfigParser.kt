@@ -851,6 +851,7 @@ object ConfigParser {
             var spiderX = ""
             var path = ""
             var wsHost = ""
+            var headerType = "none"
             var grpcMode = "gun"
             var grpcAuthority = ""
 
@@ -880,20 +881,43 @@ object ConfigParser {
                 }
             }
 
-            if (network == "ws") {
-                val ws = streamSettings?.optJSONObject("wsSettings")
-                if (ws != null) {
-                    path = ws.optString("path", "")
-                    wsHost = ws.optString("host", "").ifBlank {
-                        ws.optJSONObject("headers")?.optString("Host", "") ?: ""
+            when (network) {
+                "ws" -> {
+                    val ws = streamSettings?.optJSONObject("wsSettings")
+                    if (ws != null) {
+                        path = ws.optString("path", "")
+                        wsHost = ws.optString("host", "").ifBlank { ws.optJSONObject("headers")?.optString("Host", "") ?: "" }
                     }
                 }
-            } else if (network == "grpc") {
-                val grpc = streamSettings?.optJSONObject("grpcSettings")
-                if (grpc != null) {
-                    path = grpc.optString("serviceName", "")
-                    grpcMode = if (grpc.optBoolean("multiMode", false)) "multi" else "gun"
-                    grpcAuthority = grpc.optString("authority", "")
+                "grpc" -> {
+                    val grpc = streamSettings?.optJSONObject("grpcSettings")
+                    if (grpc != null) {
+                        path = grpc.optString("serviceName", "")
+                        grpcMode = if (grpc.optBoolean("multiMode", false)) "multi" else "gun"
+                        grpcAuthority = grpc.optString("authority", "")
+                    }
+                }
+                "httpupgrade" -> {
+                    val upgrade = streamSettings?.optJSONObject("httpupgradeSettings")
+                    if (upgrade != null) { path = upgrade.optString("path", ""); wsHost = upgrade.optString("host", "") }
+                }
+                "xhttp" -> {
+                    val xhttp = streamSettings?.optJSONObject("xhttpSettings")
+                    if (xhttp != null) { path = xhttp.optString("path", ""); wsHost = xhttp.optString("host", "") }
+                }
+                "kcp" -> {
+                    headerType = streamSettings?.optJSONObject("kcpSettings")?.optJSONObject("header")?.optString("type", "none") ?: "none"
+                }
+                "tcp" -> {
+                    val tcpHeader = streamSettings?.optJSONObject("tcpSettings")?.optJSONObject("header")
+                    headerType = tcpHeader?.optString("type", "none") ?: "none"
+                    if (headerType == "http") {
+                        val request = tcpHeader?.optJSONObject("request")
+                        val pathValue = request?.opt("path")
+                        path = when (pathValue) { is JSONArray -> pathValue.optString(0, ""); is String -> pathValue; else -> "" }
+                        val hostValue = request?.optJSONObject("headers")?.opt("Host")
+                        wsHost = when (hostValue) { is JSONArray -> hostValue.optString(0, ""); is String -> hostValue; else -> "" }
+                    }
                 }
             }
 
@@ -910,6 +934,7 @@ object ConfigParser {
                     network = network,
                     kcpSeed = kcpSeed,
                     path = path,
+                    headerType = headerType,
                     sni = sni.ifBlank { if (security == "tls" || security == "reality") server else "" },
                     wsHost = wsHost,
                     grpcMode = grpcMode,
@@ -989,6 +1014,7 @@ object ConfigParser {
             else -> transport?.optString("path", "")?.trim().orEmpty()
         }
         val kcpSeed = transport?.optString("seed", "")?.trim().orEmpty()
+        val headerType = transport?.optJSONObject("header")?.optString("type", "none")?.trim()?.ifBlank { "none" } ?: "none"
         val grpcAuthority = if (network == "grpc") {
             transport?.optString("authority", "")?.trim().orEmpty()
         } else ""
@@ -1032,6 +1058,7 @@ object ConfigParser {
             network = network,
             kcpSeed = kcpSeed,
             path = path,
+            headerType = headerType,
             sni = sni,
             wsHost = wsHost,
             grpcAuthority = grpcAuthority,
