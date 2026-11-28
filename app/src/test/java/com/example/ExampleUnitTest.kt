@@ -1572,4 +1572,36 @@ class ExampleUnitTest {
         assertFalse(config.contains("  mapdns:"))
         assertFalse(config.contains("  misc:"))
     }
+    @Test
+    fun testSocks5UriImportsCredentialsAndCustomPort() {
+        val result = ConfigParser.parse("socks5://alice:secret@proxy.example.net:1443#Office")
+        assertTrue(result is ParseResult.Success)
+        val profile = (result as ParseResult.Success).profile
+        assertEquals(ProtocolType.SOCKS5, profile.protocol)
+        assertEquals("proxy.example.net", profile.server)
+        assertEquals(1443, profile.port)
+        assertEquals("alice", profile.socksUsername)
+        assertEquals("secret", profile.password)
+    }
+
+    @Test
+    fun testXrayJsonSkipsFreedomOutboundAndFindsProxy() {
+        val json = """{"outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"vless","settings":{"vnext":[{"address":"edge.example.net","port":8443,"users":[{"id":"d342d110-d4a3-4513-bfa6-07a5e0f0ff37","encryption":"none"}]}]}}]}"""
+        val result = ConfigParser.parse(json)
+        assertTrue(result is ParseResult.Success)
+        val profile = (result as ParseResult.Success).profile
+        assertEquals(ProtocolType.VLESS, profile.protocol)
+        assertEquals("edge.example.net", profile.server)
+        assertEquals(8443, profile.port)
+    }
+
+    @Test
+    fun testXrayKcpTransportBuildsKcpSettings() {
+        val profile = VpnProfile(id = "kcp", name = "KCP", protocol = ProtocolType.VMESS, server = "node.example", port = 443, password = "uuid", network = "kcp", kcpSeed = "seed-value")
+        val outbound = JSONObject(XrayEngineAdapter().buildXrayConfig(profile, 10808)).getJSONArray("outbounds").getJSONObject(0)
+        val kcp = outbound.getJSONObject("streamSettings").getJSONObject("kcpSettings")
+        assertEquals("seed-value", kcp.getString("seed"))
+        assertEquals(1350, kcp.getInt("mtu"))
+    }
+
 }

@@ -94,7 +94,8 @@ data class VpnProfile(
     val password: String = "", // UUID for VMess/VLESS, password for Trojan/Shadowsocks/SSH
     val socksUsername: String = "", // Optional SOCKS5 username
     val security: String = "none", // none, tls, reality
-    val network: String = "tcp", // tcp, ws, grpc, httpupgrade, xhttp, h2, kcp
+    val network: String = "tcp", // tcp, ws, grpc, httpupgrade, xhttp, kcp
+    val kcpSeed: String = "", // Optional mKCP seed
     val path: String = "",
     val sni: String = "",
     val wsHost: String = "", // HTTP / WebSocket Host header when distinct from TLS SNI

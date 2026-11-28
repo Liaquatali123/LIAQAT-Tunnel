@@ -313,6 +313,7 @@ class XrayEngineAdapter : VpnEngineAdapter {
         if (profile.protocol in setOf(ProtocolType.VLESS, ProtocolType.VMESS, ProtocolType.TROJAN, ProtocolType.SHADOWSOCKS)) {
             val network = profile.network.trim().lowercase().ifEmpty { "tcp" }
             val normalizedNetwork = when (network) {
+                "raw" -> "tcp"
                 "websocket" -> "ws"
                 "gun" -> "grpc"
                 "splithttp" -> "xhttp"
@@ -364,6 +365,9 @@ class XrayEngineAdapter : VpnEngineAdapter {
                 if (profile.password.isBlank()) {
                     throw IllegalArgumentException("${profile.protocol.displayName} configuration is missing password")
                 }
+            }
+            ProtocolType.SOCKS5 -> {
+                if (profile.socksUsername.isNotBlank() && profile.password.isBlank()) throw IllegalArgumentException("SOCKS5 password is required when a username is configured")
             }
             else -> {}
         }
@@ -528,9 +532,8 @@ class XrayEngineAdapter : VpnEngineAdapter {
                 if (!isIpLiteral(serverTrimmed)) serverTrimmed else ""
             }
         }
-        val effectiveWsHost = profile.wsHost.trim().ifBlank {
-            profile.sni.trim().ifBlank { serverTrimmed }
-        }
+        // WebSocket Host and TLS SNI are independent protocol fields.
+        val effectiveWsHost = profile.wsHost.trim().ifBlank { serverTrimmed }
 
         // Outbounds: primary proxy outbound + direct + dns-out + blackhole
         val outbounds = JSONArray()
@@ -745,10 +748,16 @@ class XrayEngineAdapter : VpnEngineAdapter {
                     "xhttp" -> {
                         put("xhttpSettings", JSONObject().apply {
                             put("path", normalizePath(profile.path))
-                            if (effectiveWsHost.isNotBlank()) {
-                                put("host", effectiveWsHost)
-                            }
+                            if (effectiveWsHost.isNotBlank()) put("host", effectiveWsHost)
                             put("mode", "auto")
+                        })
+                    }
+                    "kcp" -> {
+                        put("kcpSettings", JSONObject().apply {
+                            put("mtu", 1350); put("tti", 20); put("uplinkCapacity", 5); put("downlinkCapacity", 20)
+                            put("congestion", false); put("readBufferSize", 2); put("writeBufferSize", 2)
+                            put("header", JSONObject().put("type", profile.headerType.trim().ifBlank { "none" }))
+                            if (profile.kcpSeed.isNotBlank()) put("seed", profile.kcpSeed.trim())
                         })
                     }
                     "h2" -> {

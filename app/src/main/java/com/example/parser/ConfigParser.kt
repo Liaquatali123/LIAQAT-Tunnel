@@ -51,6 +51,7 @@ object ConfigParser {
                 normalizedUri.startsWith("vless://", ignoreCase = true) -> parseVless(normalizedUri)
                 normalizedUri.startsWith("trojan://", ignoreCase = true) -> parseTrojan(normalizedUri)
                 normalizedUri.startsWith("ss://", ignoreCase = true) -> parseShadowsocks(normalizedUri)
+                normalizedUri.startsWith("socks5://", ignoreCase = true) || normalizedUri.startsWith("socks://", ignoreCase = true) -> parseSocksUri(normalizedUri)
                 normalizedUri.startsWith("ssh://", ignoreCase = true) -> parseSshUri(normalizedUri)
                 trimmed.startsWith("{") -> parseJson(trimmed)
                 normalizedUri.contains("@") && !normalizedUri.contains("://") -> parseSshUri(normalizedUri)
@@ -76,7 +77,7 @@ object ConfigParser {
                 is ParseResult.Failure -> BatchParseResult(emptyList(), listOf(result.reason))
             }
         }
-        val pattern = Regex("(?im)^\\s*(vmess|vless|trojan|ss|ssh)://")
+        val pattern = Regex("(?im)^\\s*(vmess|vless|trojan|ss|socks5?|ssh)://")
         val decoded = if (!pattern.containsMatchIn(raw)) tryDecodeBase64Utf8(raw) else null
         val source = if (decoded != null && pattern.containsMatchIn(decoded)) decoded else raw
         val lines = source.lineSequence().map { it.trim().removePrefix("\uFEFF") }
@@ -614,6 +615,18 @@ object ConfigParser {
         }
     }
 
+    private fun parseSocksUri(uriStr: String): ParseResult {
+        val uri = Uri.parse(uriStr)
+        val host = uri.host?.trim()?.removePrefix("[")?.removeSuffix("]") ?: ""
+        if (host.isBlank()) return ParseResult.Failure("SOCKS5 URI is missing server host")
+        val port = uri.port
+        if (port !in 1..65535) return ParseResult.Failure("SOCKS5 URI has invalid port: $port")
+        val userInfo = uri.encodedUserInfo?.let { decodeUrlComponent(it) } ?: uri.userInfo.orEmpty()
+        val username = userInfo.substringBefore(":", "").trim()
+        val password = if (userInfo.contains(":")) userInfo.substringAfter(":") else ""
+        return ParseResult.Success(VpnProfile(id = UUID.randomUUID().toString(), name = uri.fragment?.let { decodeUrlComponent(it) }?.ifBlank { null } ?: "SOCKS5-$host:$port", protocol = ProtocolType.SOCKS5, server = host, port = port, socksUsername = username, password = password))
+    }
+
     private fun parseSshUri(uriStr: String): ParseResult {
         val targetInfo = SshTargetParser.parse(uriStr)
         val host = targetInfo?.host ?: ""
@@ -685,7 +698,7 @@ object ConfigParser {
             val proto = try {
                 ProtocolType.valueOf(root.getString("protocol"))
             } catch (e: Exception) {
-                ProtocolType.VLESS
+                return ParseResult.Failure("Unsupported Custom Tunnel Pro protocol: ${root.optString("protocol")}")
             }
             return ParseResult.Success(
                 VpnProfile(
@@ -698,6 +711,7 @@ object ConfigParser {
                     socksUsername = root.optString("socksUsername", ""),
                     security = root.optString("security", "none"),
                     network = root.optString("network", "tcp"),
+                    kcpSeed = root.optString("kcpSeed", ""),
                     path = root.optString("path", ""),
                     sni = root.optString("sni", ""),
                     wsHost = root.optString("wsHost", ""),
@@ -757,16 +771,18 @@ object ConfigParser {
         // Standard Xray/V2Ray inbound/outbound JSON
         val outbounds = root.optJSONArray("outbounds")
         if (outbounds != null && outbounds.length() > 0) {
-            val firstOutbound = outbounds.getJSONObject(0)
-            val protocolStr = firstOutbound.optString("protocol", "vless").uppercase()
-            val proto = when (protocolStr) {
-                "VMESS" -> ProtocolType.VMESS
-                "VLESS" -> ProtocolType.VLESS
-                "TROJAN" -> ProtocolType.TROJAN
-                "SHADOWSOCKS" -> ProtocolType.SHADOWSOCKS
-                "SOCKS" -> ProtocolType.SOCKS5
-                else -> ProtocolType.VLESS
+            val supportedProtocols = mapOf("VMESS" to ProtocolType.VMESS, "VLESS" to ProtocolType.VLESS, "TROJAN" to ProtocolType.TROJAN, "SHADOWSOCKS" to ProtocolType.SHADOWSOCKS, "SOCKS" to ProtocolType.SOCKS5)
+            var selectedOutbound: JSONObject? = null
+            var selectedProtocol: ProtocolType? = null
+            for (index in 0 until outbounds.length()) {
+                val candidate = outbounds.optJSONObject(index) ?: continue
+                val candidateProtocol = supportedProtocols[candidate.optString("protocol", "").uppercase()] ?: continue
+                val candidateSettings = candidate.optJSONObject("settings") ?: continue
+                val hasEndpoint = candidateSettings.optJSONArray("vnext")?.length()?.let { it > 0 } == true || candidateSettings.optJSONArray("servers")?.length()?.let { it > 0 } == true || candidateSettings.has("address")
+                if (hasEndpoint) { selectedOutbound = candidate; selectedProtocol = candidateProtocol; break }
             }
+            val firstOutbound = selectedOutbound ?: return ParseResult.Failure("Xray JSON has no supported proxy outbound (VMess, VLESS, Trojan, Shadowsocks, or SOCKS)")
+            val proto = selectedProtocol ?: return ParseResult.Failure("Unsupported Xray outbound protocol")
             val settings = firstOutbound.optJSONObject("settings")
             var server = ""
             var port = 443
@@ -813,8 +829,10 @@ object ConfigParser {
             if (server.isEmpty()) return ParseResult.Failure("Cannot parse outbound server address from Xray JSON")
 
             val streamSettings = firstOutbound.optJSONObject("streamSettings")
-            val network = streamSettings?.optString("network", "tcp")?.lowercase() ?: "tcp"
+            val rawNetwork = streamSettings?.optString("network", "tcp")?.lowercase() ?: "tcp"
+            val network = when (rawNetwork) { "raw" -> "tcp"; "websocket" -> "ws"; "gun" -> "grpc"; "splithttp" -> "xhttp"; else -> rawNetwork }
             val security = streamSettings?.optString("security", "none")?.lowercase() ?: "none"
+            val kcpSeed = streamSettings?.optJSONObject("kcpSettings")?.optString("seed", "") ?: ""
 
             var sni = ""
             var fingerprint = "chrome"
@@ -882,6 +900,7 @@ object ConfigParser {
                     socksUsername = socksUsername,
                     security = security,
                     network = network,
+                    kcpSeed = kcpSeed,
                     path = path,
                     sni = sni.ifBlank { wsHost },
                     wsHost = wsHost,
@@ -961,6 +980,7 @@ object ConfigParser {
             "grpc" -> transport?.optString("service_name", "")?.trim().orEmpty()
             else -> transport?.optString("path", "")?.trim().orEmpty()
         }
+        val kcpSeed = transport?.optString("seed", "")?.trim().orEmpty()
         val grpcAuthority = if (network == "grpc") {
             transport?.optString("authority", "")?.trim().orEmpty()
         } else ""
@@ -1002,6 +1022,7 @@ object ConfigParser {
             socksUsername = socksUsername,
             security = security,
             network = network,
+            kcpSeed = kcpSeed,
             path = path,
             sni = sni,
             wsHost = wsHost,
@@ -1113,6 +1134,7 @@ object ConfigParser {
             put("socksUsername", profile.socksUsername)
             put("security", profile.security)
             put("network", profile.network)
+            put("kcpSeed", profile.kcpSeed)
             put("path", profile.path)
             put("sni", profile.sni)
             put("wsHost", profile.wsHost)
