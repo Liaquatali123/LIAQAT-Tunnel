@@ -1685,4 +1685,20 @@ class ExampleUnitTest {
         assertEquals("front.example", tcp.profile.wsHost)
     }
 
+    @Test
+    fun testRejectsUnsupportedHttp2TransportAtImportTime() {
+        val trojan = ConfigParser.parse("trojan://secret@edge.example:443?type=h2")
+        assertTrue(trojan is ParseResult.Failure)
+        val vmessJson = """{"add":"edge.example","port":"443","id":"d342d110-d4a3-4513-bfa6-07a5e0f0ff37","net":"http","tls":"tls"}"""
+        val vmess = ConfigParser.parse("vmess://" + android.util.Base64.encodeToString(vmessJson.toByteArray(), android.util.Base64.NO_WRAP))
+        assertTrue(vmess is ParseResult.Failure)
+    }
+
+    @Test
+    fun testRejectsShadowsocksPluginUriInsteadOfSilentlyDroppingPlugin() {
+        val credentials = android.util.Base64.encodeToString("aes-256-gcm:secret".toByteArray(), android.util.Base64.NO_WRAP)
+        val result = ConfigParser.parse("ss://" + credentials + "@edge.example:8388?plugin=v2ray-plugin%3Bmode%3Dwebsocket")
+        assertTrue(result is ParseResult.Failure)
+    }
+
 }

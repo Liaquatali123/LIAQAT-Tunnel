@@ -239,15 +239,11 @@ object ConfigParser {
                 outerFragment.ifEmpty { "VMess-$server:$port" }
             }
             val rawNet = json.optString("net", "tcp").trim().lowercase().ifEmpty { "tcp" }
-            val network = when (rawNet) {
-                "websocket" -> "ws"
-                "gun" -> "grpc"
-                "splithttp" -> "xhttp"
-                "http" -> "h2"
-                else -> rawNet
-            }
+            val network = normalizeXrayNetwork(rawNet).let { if (it == "http") "h2" else it }
+            if (network !in SUPPORTED_XRAY_NETWORKS) return ParseResult.Failure("Unsupported VMess transport type: " + rawNet)
             val rawTls = json.optString("tls", "none").trim().lowercase()
             val security = if (rawTls == "tls" || rawTls == "1" || rawTls == "true") "tls" else if (rawTls == "reality") "reality" else "none"
+            if (security == "reality") return ParseResult.Failure("VMess REALITY is not supported by the current Xray adapter")
             val wsHost = json.optString("host", "").trim()
             val sni = json.optString("sni", "").trim().ifBlank { if (security == "tls") server else "" }
             val path = json.optString("path", "").trim()
@@ -359,16 +355,8 @@ object ConfigParser {
         val cipher = (queryParams["encryption"] ?: queryParams["scy"] ?: queryParams["cipher"] ?: userCipherCandidate.ifEmpty { "auto" }).trim().ifEmpty { "auto" }
 
         val rawNetwork = (queryParams["type"] ?: queryParams["net"] ?: queryParams["network"] ?: queryParams["obfs"] ?: "tcp").trim().lowercase()
-        val network = when (rawNetwork) {
-            "", "none", "tcp" -> "tcp"
-            "ws", "websocket" -> "ws"
-            "grpc", "gun" -> "grpc"
-            "httpupgrade" -> "httpupgrade"
-            "xhttp", "splithttp" -> "xhttp"
-            "h2", "http" -> "h2"
-            "kcp" -> "kcp"
-            else -> rawNetwork
-        }
+        val network = normalizeXrayNetwork(rawNetwork).let { if (it == "http" || it == "h2") "h2" else it }
+        if (network !in SUPPORTED_XRAY_NETWORKS) return ParseResult.Failure("Unsupported VMess transport type: " + rawNetwork)
 
         val rawSecurity = (queryParams["security"] ?: queryParams["tls"] ?: "").trim().lowercase()
         val security = when (rawSecurity) {
@@ -376,6 +364,7 @@ object ConfigParser {
             "reality" -> "reality"
             else -> "none"
         }
+        if (security == "reality") return ParseResult.Failure("VMess REALITY is not supported by the current Xray adapter")
 
         val wsHost = (queryParams["host"] ?: queryParams["obfsParam"] ?: "").trim()
         val sni = (queryParams["sni"] ?: queryParams["peer"] ?: "").trim().ifEmpty {
@@ -414,6 +403,16 @@ object ConfigParser {
             allowInsecureSsl = allowInsecure
         )
         return ParseResult.Success(profile)
+    }
+
+    private val SUPPORTED_XRAY_NETWORKS = setOf("tcp", "ws", "grpc", "httpupgrade", "xhttp", "kcp")
+
+    private fun normalizeXrayNetwork(raw: String): String = when (raw.trim().lowercase()) {
+        "", "raw" -> "tcp"
+        "websocket" -> "ws"
+        "gun" -> "grpc"
+        "splithttp" -> "xhttp"
+        else -> raw.trim().lowercase()
     }
 
     private val SUPPORTED_VLESS_NETWORKS = setOf(
@@ -542,9 +541,12 @@ object ConfigParser {
         val name = uri.fragment?.let { decodeUrlComponent(it) } ?: "Trojan-$host:$port"
         val wsHost = (queryParams["host"] ?: "").trim()
         val sni = (queryParams["sni"] ?: queryParams["peer"] ?: "").trim().ifEmpty { host }
-        val network = (queryParams["type"] ?: "tcp").trim().lowercase().ifEmpty { "tcp" }
+        val rawNetwork = (queryParams["type"] ?: "tcp").trim().lowercase().ifEmpty { "tcp" }
+        val network = normalizeXrayNetwork(rawNetwork)
+        if (network !in SUPPORTED_XRAY_NETWORKS) return ParseResult.Failure("Unsupported Trojan transport type: " + rawNetwork)
         val path = (queryParams["path"] ?: queryParams["serviceName"] ?: "").trim()
         val security = (queryParams["security"] ?: "tls").trim().lowercase().ifEmpty { "tls" }
+        if (security !in setOf("none", "tls")) return ParseResult.Failure("Unsupported Trojan security mode: " + security)
         val alpn = (queryParams["alpn"] ?: "").trim()
         val fp = (queryParams["fp"] ?: "chrome").trim().ifEmpty { "chrome" }
         val allowInsecure = listOf("allowInsecure", "insecure", "allow_insecure").any { key ->
@@ -574,6 +576,8 @@ object ConfigParser {
     private fun parseShadowsocks(uriStr: String): ParseResult {
         // SIP002 and legacy Shadowsocks URIs, including bracketed IPv6 endpoints.
         val body = uriStr.substringAfter("ss://", "")
+        val query = body.substringAfter("?", "").substringBefore("#")
+        if (parseQueryParams(query)["plugin"].orEmpty().isNotBlank()) return ParseResult.Failure("Shadowsocks plugins are not supported by the current engine; import a plugin-free URI")
         val mainPart = body.substringBefore("#").substringBefore("?")
         val name = decodeUrlComponent(body.substringAfter("#", "Shadowsocks").substringBefore("?"))
         val at = mainPart.lastIndexOf('@')
@@ -839,8 +843,10 @@ object ConfigParser {
 
             val streamSettings = firstOutbound.optJSONObject("streamSettings")
             val rawNetwork = streamSettings?.optString("network", "tcp")?.lowercase() ?: "tcp"
-            val network = when (rawNetwork) { "raw" -> "tcp"; "websocket" -> "ws"; "gun" -> "grpc"; "splithttp" -> "xhttp"; else -> rawNetwork }
+            val network = normalizeXrayNetwork(rawNetwork)
+            if (network !in SUPPORTED_XRAY_NETWORKS) return ParseResult.Failure("Unsupported Xray transport type: " + rawNetwork)
             val security = streamSettings?.optString("security", "none")?.lowercase() ?: "none"
+            if (security == "reality" && proto != ProtocolType.VLESS) return ParseResult.Failure("Xray REALITY import is supported only for VLESS")
             val kcpSeed = streamSettings?.optJSONObject("kcpSettings")?.optString("seed", "") ?: ""
 
             var sni = ""
