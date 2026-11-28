@@ -122,7 +122,7 @@ fun DnsRoutingScreen(
                             customDns = it
                             val updated = settings.copy(customDns = it, defaultDns = it)
                             viewModel.updateSettings(updated)
-                            updateSelectedProfile { it.copy(dnsPrimary = it) }
+                            updateSelectedProfile { profile -> profile.copy(dnsPrimary = it) }
                         },
                         label = { Text("Custom DNS Server IP") },
                         modifier = Modifier.fillMaxWidth(),
@@ -163,7 +163,7 @@ fun DnsRoutingScreen(
                         blockIpv6 = it
                         val updated = settings.copy(blockIpv6ByDefault = it)
                         viewModel.updateSettings(updated)
-                        updateSelectedProfile { it.copy(blockIpv6 = it) }
+                        updateSelectedProfile { profile -> profile.copy(blockIpv6 = it) }
                     }
                 )
             }
@@ -200,7 +200,7 @@ fun DnsRoutingScreen(
                         bypassLan = it
                         val updated = settings.copy(bypassLan = it)
                         viewModel.updateSettings(updated)
-                        updateSelectedProfile { it.copy(bypassLan = it) }
+                        updateSelectedProfile { profile -> profile.copy(bypassLan = it) }
                     }
                 )
             }
