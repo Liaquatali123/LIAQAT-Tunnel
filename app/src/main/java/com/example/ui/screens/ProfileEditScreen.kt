@@ -66,7 +66,7 @@ fun ProfileEditScreen(
     var server by remember { mutableStateOf(initialProfile?.server ?: "") }
     var portText by remember { mutableStateOf(initialProfile?.port?.toString() ?: if (protocol == ProtocolType.SSH) "22" else "443") }
     var password by remember { mutableStateOf(initialProfile?.password ?: "") }
-    private val initialSsCredential = initialProfile?.password.orEmpty()
+    val initialSsCredential = initialProfile?.password.orEmpty()
     var ssMethod by remember { mutableStateOf(if (initialSsCredential.contains(":")) initialSsCredential.substringBefore(":") else "aes-256-gcm") }
     var ssPassword by remember { mutableStateOf(if (initialSsCredential.contains(":")) initialSsCredential.substringAfter(":") else initialSsCredential) }
     var socksUsername by remember { mutableStateOf(initialProfile?.socksUsername ?: "") }
