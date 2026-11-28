@@ -785,7 +785,8 @@ class ExampleUnitTest {
             security = "tls",
             network = "ws",
             path = "/ws",
-            sni = "cf-tunnel.example.com"
+            sni = "cf-tunnel.example.com",
+            bypassLan = false
         )
 
         val json = JSONObject(
@@ -860,12 +861,21 @@ class ExampleUnitTest {
         assertEquals("tcp://149.112.112.112:53", customDns.getString(1))
         assertEquals("AsIs", json.getJSONObject("routing").getString("domainStrategy"))
 
-        // Verify first routing rule routes port 53 to dns-out, second routes dns-in to proxy, and third blocks QUIC over WS/TCP
+        // Verify DNS interception rules and full-tunnel routing. QUIC/UDP must not be
+        // blackholed merely because the proxy's own transport is WebSocket over TCP.
         val rules = json.getJSONObject("routing").getJSONArray("rules")
         assertEquals("53", rules.getJSONObject(0).getString("port"))
         assertEquals("dns-out", rules.getJSONObject(0).getString("outboundTag"))
         assertEquals("proxy", rules.getJSONObject(1).getString("outboundTag"))
-        assertEquals("block", rules.getJSONObject(2).getString("outboundTag"))
+        assertEquals("tcp,udp", rules.getJSONObject(2).getString("network"))
+        assertEquals("proxy", rules.getJSONObject(2).getString("outboundTag"))
+        assertFalse((0 until rules.length()).any { index ->
+            val rule = rules.getJSONObject(index)
+            rule.optString("outboundTag") == "block" &&
+                rule.optJSONArray("protocol")?.let { protocols ->
+                    (0 until protocols.length()).any { protocols.optString(it) == "quic" }
+                } == true
+        })
 
         // Verify HevTunnelManager uses RFC 1928 'udp' mode, 64KB tcp-buffer-size, limit-nofile: 65535, and mapdns for SSH
         val hevYaml = com.example.vpn.engine.HevTunnelManager.buildConfigYaml("127.0.0.1", 10808, "udp")
