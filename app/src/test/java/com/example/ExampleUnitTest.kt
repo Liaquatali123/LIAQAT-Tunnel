@@ -170,6 +170,36 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun testPlaintextTrojanWsPort80UsesScopedCoreOptIn() {
+        val uri = "trojan://secretPass123@trojan.example.net:80?type=ws&security=none&path=%2Ftrojan-ws&host=cdn.example.net#Trojan-NTLS-80"
+        val parsed = ConfigParser.parse(uri)
+        assertTrue(parsed is ParseResult.Success)
+        val profile = (parsed as ParseResult.Success).profile
+        assertEquals(ProtocolType.TROJAN, profile.protocol)
+        assertEquals(80, profile.port)
+        assertEquals("ws", profile.network)
+        assertEquals("none", profile.security)
+        assertEquals("/trojan-ws", profile.path)
+        assertEquals("cdn.example.net", profile.wsHost)
+
+        val config = JSONObject(XrayEngineAdapter().buildXrayConfig(profile, 10808))
+        val outbound = config.getJSONArray("outbounds").getJSONObject(0)
+        assertEquals("trojan", outbound.getString("protocol"))
+        assertTrue(outbound.getBoolean("allowInsecureTrojan"))
+        assertFalse(outbound.getBoolean("allowInsecureVless"))
+        val stream = outbound.getJSONObject("streamSettings")
+        assertEquals("none", stream.getString("security"))
+        assertEquals("ws", stream.getString("network"))
+        val ws = stream.getJSONObject("wsSettings")
+        assertEquals("/trojan-ws", ws.getString("path"))
+        assertEquals("cdn.example.net", ws.getString("host"))
+
+        val tlsProfile = profile.copy(id = "trojan-tls", security = "tls", port = 443)
+        val tlsOutbound = JSONObject(XrayEngineAdapter().buildXrayConfig(tlsProfile, 10808))
+            .getJSONArray("outbounds").getJSONObject(0)
+        assertFalse(tlsOutbound.getBoolean("allowInsecureTrojan"))
+    }
+    @Test
     fun testVpnStateProperties() {
         val disconnected = VpnState.Disconnected
         assertFalse(disconnected.isConnected)
