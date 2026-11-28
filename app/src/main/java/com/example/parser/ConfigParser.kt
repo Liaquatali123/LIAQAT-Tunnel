@@ -158,6 +158,7 @@ object ConfigParser {
             profile.dnsPrimary.trim().lowercase(),
             profile.dnsSecondary.trim().lowercase(),
             profile.blockIpv6.toString(),
+            profile.bypassLan.toString(),
             profile.perAppProxy.toString(),
             profile.selectedApps.sorted().joinToString(",")
         )
@@ -758,6 +759,7 @@ object ConfigParser {
                     dnsPrimary = root.optString("dnsPrimary", ""),
                     dnsSecondary = root.optString("dnsSecondary", ""),
                     blockIpv6 = root.optBoolean("blockIpv6", true),
+                    bypassLan = root.optBoolean("bypassLan", true),
                     isLocked = root.optBoolean("isLocked", false),
                     lockPasswordHash = root.optString("lockPasswordHash", ""),
                     expiresAtMillis = root.optLong("expiresAtMillis", 0L),
@@ -1173,6 +1175,7 @@ object ConfigParser {
             put("dnsPrimary", profile.dnsPrimary)
             put("dnsSecondary", profile.dnsSecondary)
             put("blockIpv6", profile.blockIpv6)
+            put("bypassLan", profile.bypassLan)
             put("sshMode", profile.sshMode.name)
             put("sshPrivateKey", profile.sshPrivateKey)
             put("sshPassphrase", profile.sshPassphrase)

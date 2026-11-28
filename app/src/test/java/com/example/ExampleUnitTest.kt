@@ -1629,4 +1629,16 @@ class ExampleUnitTest {
         assertEquals("h2,http/1.1", profile.alpn)
     }
 
+    @Test
+    fun testProfileJsonRoundTripPreservesLanBypassAndDnsSettings() {
+        val original = VpnProfile(id = "routing", name = "Routing", protocol = ProtocolType.VLESS, server = "node.example", port = 443, password = "uuid", dnsPrimary = "9.9.9.9", dnsSecondary = "1.1.1.1", blockIpv6 = false, bypassLan = false)
+        val parsed = ConfigParser.parse(ConfigParser.exportProfileToJson(original))
+        assertTrue(parsed is ParseResult.Success)
+        val profile = (parsed as ParseResult.Success).profile
+        assertEquals("9.9.9.9", profile.dnsPrimary)
+        assertEquals("1.1.1.1", profile.dnsSecondary)
+        assertFalse(profile.blockIpv6)
+        assertFalse(profile.bypassLan)
+    }
+
 }

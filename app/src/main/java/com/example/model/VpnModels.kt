@@ -134,6 +134,7 @@ data class VpnProfile(
     val dnsPrimary: String = "", // Blank means use the current underlying network DNS
     val dnsSecondary: String = "",
     val blockIpv6: Boolean = true,
+    val bypassLan: Boolean = true,
     val perAppProxy: Boolean = false,
     val selectedApps: List<String> = emptyList(),
     val lastPingMs: Long? = null,

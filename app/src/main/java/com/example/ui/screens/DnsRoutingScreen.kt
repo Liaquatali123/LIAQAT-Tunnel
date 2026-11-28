@@ -52,6 +52,10 @@ fun DnsRoutingScreen(
     var blockIpv6 by remember(settings) { mutableStateOf(settings.blockIpv6ByDefault) }
     var bypassLan by remember(settings) { mutableStateOf(settings.bypassLan) }
 
+    fun updateSelectedProfile(transform: (com.example.model.VpnProfile) -> com.example.model.VpnProfile) {
+        selectedProfile?.let { viewModel.saveProfile(transform(it)) }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -104,6 +108,7 @@ fun DnsRoutingScreen(
                                     defaultDns = if (ip == "custom") customDns else ip
                                 )
                                 viewModel.updateSettings(updated)
+                                updateSelectedProfile { it.copy(dnsPrimary = if (ip == "custom") customDns else ip) }
                             },
                             label = { Text("$name ($ip)") }
                         )
@@ -117,6 +122,7 @@ fun DnsRoutingScreen(
                             customDns = it
                             val updated = settings.copy(customDns = it, defaultDns = it)
                             viewModel.updateSettings(updated)
+                            updateSelectedProfile { it.copy(dnsPrimary = it) }
                         },
                         label = { Text("Custom DNS Server IP") },
                         modifier = Modifier.fillMaxWidth(),
@@ -157,6 +163,7 @@ fun DnsRoutingScreen(
                         blockIpv6 = it
                         val updated = settings.copy(blockIpv6ByDefault = it)
                         viewModel.updateSettings(updated)
+                        updateSelectedProfile { it.copy(blockIpv6 = it) }
                     }
                 )
             }
@@ -181,7 +188,7 @@ fun DnsRoutingScreen(
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = "Exclude private subnets (192.168.0.0/16, 10.0.0.0/8) to retain access to local printers and NAS devices.",
+                            text = "Exclude private LAN ranges to retain access to local printers and NAS devices. Route exclusion is supported on Android 13 and newer.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -193,9 +200,14 @@ fun DnsRoutingScreen(
                         bypassLan = it
                         val updated = settings.copy(bypassLan = it)
                         viewModel.updateSettings(updated)
+                        updateSelectedProfile { it.copy(bypassLan = it) }
                     }
                 )
             }
+        }
+
+        if (selectedProfile == null) {
+            Text("Select a profile to apply DNS, IPv6 and LAN routing changes to its next connection.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         // Per-App Split Tunneling Info

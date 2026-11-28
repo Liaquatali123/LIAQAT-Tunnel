@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
+import android.net.IpPrefix
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
@@ -333,6 +334,20 @@ class CustomTunnelVpnService : VpnService() {
         } catch (e: Exception) {
             AppLogger.e(TAG, "Could not establish IPv6 leak protection route: ${e.message}", e)
             throw IllegalStateException("Unable to secure IPv6 routing; refusing to start VPN", e)
+        }
+
+        // Exclude private/local networks from the VPN route when requested. Android's
+        // route exclusion API is available from API 33; older Android versions keep the
+        // full-tunnel route and log the limitation instead of pretending LAN bypass worked.
+        if (profile.bypassLan) {
+            if (Build.VERSION.SDK_INT >= 33) {
+                listOf("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "fc00::/7", "fe80::/10").forEach { cidr ->
+                    builder.excludeRoute(IpPrefix(cidr))
+                }
+                AppLogger.i(TAG, "LAN bypass enabled for private IPv4 and local IPv6 ranges")
+            } else {
+                AppLogger.w(TAG, "LAN bypass requested but Android route exclusions require Android 13+; local ranges remain inside the VPN")
+            }
         }
 
         // Per-App Split Tunneling (always exclude self package to prevent routing loops)
