@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply the narrowly-scoped plaintext-VLESS opt-in patch to pinned Xray source."""
+"""Apply protocol-scoped plaintext VLESS/Trojan opt-ins to pinned Xray source."""
 from pathlib import Path
 import sys
 
@@ -19,34 +19,39 @@ def replace_once(old: str, new: str, label: str) -> None:
 
 
 replace_once(
-    '\tTargetStrategy string           `json:"targetStrategy"`\n}',
+    '\tTargetStrategy string           `json:"targetStrategy"`\n\t// Explicit app-scoped opt-ins for legacy plaintext outbounds.\n\tAllowInsecureVless bool         `json:"allowInsecureVless"`\n\tAllowInsecureTrojan bool        `json:"allowInsecureTrojan"`\n}',
     '\tTargetStrategy string           `json:"targetStrategy"`\n'
     '\t// AllowInsecureVless is an app-scoped opt-in for legacy plaintext VLESS outbounds.\n'
     '\tAllowInsecureVless bool         `json:"allowInsecureVless"`\n}',
     "outbound config field",
 )
 replace_once(
-    'func validateOutboundTransportSecurity(rawConfig interface{}, senderSettings *proxyman.SenderConfig) error {',
+    'func validateOutboundTransportSecurity(rawConfig interface{}, senderSettings *proxyman.SenderConfig, allowInsecureVless bool, allowInsecureTrojan bool) error {',
     'func validateOutboundTransportSecurity(rawConfig interface{}, senderSettings *proxyman.SenderConfig, allowInsecureVless bool) error {',
     "validation function signature",
 )
 replace_once(
-    'if requiresTransportSecurity(vlessCfg.Address) {',
+    'if !allowInsecureVless && requiresTransportSecurity(vlessCfg.Address) {',
     'if !allowInsecureVless && requiresTransportSecurity(vlessCfg.Address) {',
     "VLESS-only validation gate",
 )
 replace_once(
-    'if err := validateOutboundTransportSecurity(rawConfig, senderSettings); err != nil {',
+    'if requiresTransportSecurity(tjCfg.Servers[0].Address) {',
+    'if !allowInsecureTrojan && requiresTransportSecurity(tjCfg.Servers[0].Address) {',
+    "Trojan-only validation gate",
+)
+replace_once(
+    'if err := validateOutboundTransportSecurity(rawConfig, senderSettings, c.AllowInsecureVless, c.AllowInsecureTrojan); err != nil {',
     'if err := validateOutboundTransportSecurity(rawConfig, senderSettings, c.AllowInsecureVless); err != nil {',
     "validation call",
 )
 
-if "AllowInsecureVless bool" not in source:
+if "AllowInsecureVless bool" not in source or "AllowInsecureTrojan bool" not in source:
     raise SystemExit("Patched outbound field missing")
-if "if !allowInsecureVless && requiresTransportSecurity(vlessCfg.Address)" not in source:
+if "if !allowInsecureVless && requiresTransportSecurity(vlessCfg.Address)" not in source or "if !allowInsecureTrojan && requiresTransportSecurity(tjCfg.Servers[0].Address)" not in source:
     raise SystemExit("Patched VLESS-only gate missing")
-if "validateOutboundTransportSecurity(rawConfig, senderSettings, c.AllowInsecureVless)" not in source:
+if "validateOutboundTransportSecurity(rawConfig, senderSettings, c.AllowInsecureVless, c.AllowInsecureTrojan)" not in source:
     raise SystemExit("Patched validation call missing")
 
 path.write_text(source, encoding="utf-8")
-print("Applied scoped plaintext-VLESS opt-in patch. Trojan validation and all other core checks remain unchanged.")
+print("Applied protocol-scoped plaintext VLESS/Trojan opt-ins. All other core security checks remain unchanged.")
