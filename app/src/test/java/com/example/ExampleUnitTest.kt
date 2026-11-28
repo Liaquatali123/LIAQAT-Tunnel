@@ -201,6 +201,67 @@ class ExampleUnitTest {
         assertFalse(tlsOutbound.getBoolean("allowInsecureTrojan"))
     }
     @Test
+    fun testLanBypassFlagAndUdpRoutingAreHonored() {
+        val adapter = XrayEngineAdapter()
+        val base = VpnProfile(
+            id = "lan-routing", name = "LAN routing", protocol = ProtocolType.VLESS,
+            server = "edge.example", port = 443, password = "d342d110-d4a3-4513-bfa6-07a5e0f0ff37",
+            bypassLan = true
+        )
+        fun rules(profile: VpnProfile) = JSONObject(adapter.buildXrayConfig(profile, 10808))
+            .getJSONObject("routing").getJSONArray("rules")
+
+        val bypassRules = rules(base)
+        assertTrue((0 until bypassRules.length()).any { index ->
+            val rule = bypassRules.getJSONObject(index)
+            rule.optString("outboundTag") == "direct" &&
+                rule.optJSONArray("ip")?.let { ips ->
+                    (0 until ips.length()).any { ips.optString(it) == "geoip:private" }
+                } == true
+        })
+
+        val fullTunnelRules = rules(base.copy(bypassLan = false))
+        assertFalse((0 until fullTunnelRules.length()).any { index ->
+            val rule = fullTunnelRules.getJSONObject(index)
+            rule.optString("outboundTag") == "direct" &&
+                rule.optJSONArray("ip")?.let { ips ->
+                    (0 until ips.length()).any { ips.optString(it) == "geoip:private" }
+                } == true
+        })
+        assertFalse((0 until fullTunnelRules.length()).any { index ->
+            val rule = fullTunnelRules.getJSONObject(index)
+            rule.optString("outboundTag") == "block" &&
+                rule.optJSONArray("protocol")?.let { protocols ->
+                    (0 until protocols.length()).any { protocols.optString(it) == "quic" }
+                } == true
+        })
+    }
+
+    @Test
+    fun testDnsFormatterHandlesIpv6AndDoesNotCorruptDohUrls() {
+        val adapter = XrayEngineAdapter()
+        assertEquals("tcp://[2001:4860:4860::8888]:53", adapter.formatTcpDnsServer("2001:4860:4860::8888"))
+        assertEquals("tcp://[2001:4860:4860::8888]:5353", adapter.formatTcpDnsServer("[2001:4860:4860::8888]:5353"))
+        assertEquals("https://dns.google/dns-query", adapter.formatTcpDnsServer("https://dns.google/dns-query"))
+        assertEquals("tcp://9.9.9.9:5353", adapter.formatTcpDnsServer("tcp://9.9.9.9:5353"))
+    }
+
+    @Test
+    fun testKcpTransportGeneratesItsActualKcpSettings() {
+        val profile = VpnProfile(
+            id = "kcp", name = "KCP", protocol = ProtocolType.VMESS,
+            server = "edge.example", port = 443, password = "d342d110-d4a3-4513-bfa6-07a5e0f0ff37",
+            network = "kcp", kcpSeed = "seed-value", headerType = "wechat-video"
+        )
+        val outbound = JSONObject(XrayEngineAdapter().buildXrayConfig(profile, 10808))
+            .getJSONArray("outbounds").getJSONObject(0)
+        val stream = outbound.getJSONObject("streamSettings")
+        assertEquals("kcp", stream.getString("network"))
+        assertEquals("seed-value", stream.getJSONObject("kcpSettings").getString("seed"))
+        assertEquals("wechat-video", stream.getJSONObject("kcpSettings").getJSONObject("header").getString("type"))
+    }
+
+    @Test
     fun testVpnStateProperties() {
         val disconnected = VpnState.Disconnected
         assertFalse(disconnected.isConnected)

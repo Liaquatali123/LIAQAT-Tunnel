@@ -446,13 +446,40 @@ class XrayEngineAdapter : VpnEngineAdapter {
         return if (trimmed.startsWith("/")) trimmed else "/$trimmed"
     }
 
-    private fun formatTcpDnsServer(rawDns: String): String {
+    internal fun formatTcpDnsServer(rawDns: String): String {
         val trimmed = rawDns.trim().ifBlank { "1.1.1.1" }
         if (trimmed.contains("://")) {
-            val afterScheme = trimmed.substringAfter("://")
-            return if (afterScheme.contains(":")) trimmed else "$trimmed:53"
+            val scheme = trimmed.substringBefore("://").lowercase()
+            if (scheme != "tcp" && scheme != "udp") return trimmed
+            val endpoint = trimmed.substringAfter("://")
+            if (endpoint.startsWith("[")) {
+                val close = endpoint.indexOf(']')
+                if (close > 0) {
+                    val suffix = endpoint.substring(close + 1)
+                    return if (suffix.startsWith(":")) trimmed else "$trimmed:53"
+                }
+            }
+            val colonCount = endpoint.count { it == ':' }
+            return when {
+                colonCount == 0 -> "$trimmed:53"
+                colonCount > 1 -> "$scheme://[$endpoint]:53"
+                else -> trimmed
+            }
         }
-        return if (trimmed.contains(":")) "tcp://$trimmed" else "tcp://$trimmed:53"
+
+        if (trimmed.startsWith("[")) {
+            val close = trimmed.indexOf(']')
+            if (close > 0) {
+                val suffix = trimmed.substring(close + 1)
+                return if (suffix.startsWith(":")) "tcp://$trimmed" else "tcp://$trimmed:53"
+            }
+        }
+        val colonCount = trimmed.count { it == ':' }
+        return when {
+            colonCount > 1 -> "tcp://[$trimmed]:53"
+            colonCount == 1 -> "tcp://$trimmed"
+            else -> "tcp://$trimmed:53"
+        }
     }
 
     private fun formatLocalTcpDnsServer(rawDns: String): String {
@@ -906,21 +933,17 @@ class XrayEngineAdapter : VpnEngineAdapter {
                 put("outboundTag", "proxy")
             })
 
-            // Reject QUIC (UDP/443) over TCP/WebSocket tunnels so browsers/apps immediately use fast HTTP/2 over TCP
-            // instead of suffering severe QUIC-over-WebSocket-over-TCP double-congestion throughput collapse
-            if (normalizedNetwork != "kcp") {
+            // Preserve UDP/QUIC support through the selected proxy. Do not silently blackhole
+            // application traffic based only on the transport used by the proxy connection.
+            // LAN bypass is an explicit profile option and must be honored consistently:
+            // Android excludes these routes when enabled; Xray only adds direct routing then.
+            if (profile.bypassLan) {
                 rules.put(JSONObject().apply {
                     put("type", "field")
-                    put("protocol", JSONArray().put("quic"))
-                    put("outboundTag", "block")
+                    put("ip", JSONArray().put("geoip:private"))
+                    put("outboundTag", "direct")
                 })
             }
-
-            rules.put(JSONObject().apply {
-                put("type", "field")
-                put("ip", JSONArray().put("geoip:private"))
-                put("outboundTag", "direct")
-            })
 
             rules.put(JSONObject().apply {
                 put("type", "field")
